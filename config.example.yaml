@@ -80,7 +80,18 @@ sinks:
     # rbac_denied, rug_pull, poisoning_suspect.
     send: ""
 
-  # Optional hosted backend (Team tier). Not implemented yet.
+  # Optional hosted backend (Team tier). Ships batches of events to a remote
+  # ingest endpoint: up to 50 at a time, and whatever is pending every 5
+  # seconds so a quiet session still delivers. Batches are gzipped, which is
+  # worth roughly 8x on this shape of JSON.
+  #
+  # Like the webhook, this is best-effort — if the backend is down the events
+  # are retried and then dropped from this sink alone. The local log is
+  # unaffected.
+  #
+  # The endpoint must be https, since audit events carry tool arguments and
+  # those routinely hold secrets. Loopback addresses are allowed so the
+  # backend can be developed against.
   hosted:
     enabled: false
     api_key: ""

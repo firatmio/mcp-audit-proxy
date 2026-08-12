@@ -235,6 +235,7 @@ type pipeline struct {
 	dispatcher  *sinks.Dispatcher
 	jsonl       *sinks.JSONL
 	webhook     *sinks.Webhook
+	hosted      *sinks.Hosted
 }
 
 // newPipeline wires the interceptor, policy engine and sinks together.
@@ -267,6 +268,15 @@ func newPipeline(cfg config.Config, serverName, clientID string, logger *log.Log
 		dispatcher.Add(webhook, false)
 	}
 
+	var hosted *sinks.Hosted
+	if cfg.Sinks.Hosted.Enabled {
+		hosted, err = sinks.NewHosted(cfg.Sinks.Hosted)
+		if err != nil {
+			return nil, err
+		}
+		dispatcher.Add(hosted, false)
+	}
+
 	return &pipeline{
 		interceptor: interceptor.New(interceptor.Options{
 			ServerName: serverName,
@@ -276,6 +286,7 @@ func newPipeline(cfg config.Config, serverName, clientID string, logger *log.Log
 		dispatcher: dispatcher,
 		jsonl:      jsonl,
 		webhook:    webhook,
+		hosted:     hosted,
 	}, nil
 }
 

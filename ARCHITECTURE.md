@@ -73,6 +73,43 @@ yazar. JSONL sink'in hatası proxy akışını durdurmaz (log + devam). Webhook/
 sink'lerde exponential backoff'lu retry kuyruğu olur (basit in-memory kuyruk,
 MVP'de disk-backed olmasına gerek yok).
 
+## Hosted ingest protokolü (Team tier)
+
+`internal/sinks/hosted.go` bu repoda; ingest endpoint'inin kendisi ayrı bir
+serviste. Aradaki sözleşme:
+
+```
+POST <endpoint>
+Authorization:    Bearer <api_key>
+Content-Type:     application/json
+Content-Encoding: gzip
+User-Agent:       mcp-audit
+
+{"events": [ <ToolCallEvent>, ... ]}
+```
+
+Backend'in uyması gerekenler:
+
+- **`event_id` üzerinden idempotent olmalı.** Retry edilen bir batch aynı
+  `event_id`'leri taşır (test: `TestHostedEventsKeepTheirIdentity`).
+  Deduplikasyon backend'in sorumluluğu.
+- **2xx = kabul.** İstemci `202 Accepted` bekler ama 2xx'in tamamını başarı
+  sayar.
+- **401/403** kalıcı sayılır, tekrar denenmez — geçersiz bir anahtar bir
+  sonraki denemede de geçersiz olacak.
+- **413** kalıcı sayılır (batch çok büyük).
+- **408 / 429 / 5xx** geçici sayılır, backoff'la tekrar denenir.
+- Diğer 4xx'ler kalıcı sayılır.
+
+İstemci tarafı sabitleri: batch 50 event ya da 5 sn (hangisi önce dolarsa),
+sıkıştırılmamış batch üst sınırı 4 MiB, istek zaman aşımı 10 sn, retry
+bütçesi 4 deneme / ~3 sn.
+
+Güvenlik notu: endpoint `https://` olmak zorunda (loopback hariç). Audit
+event'leri tool argümanlarını taşır, onlar da rutin olarak secret barındırır.
+API anahtarı hiçbir hata mesajına ya da log satırına girmez — test edilmiştir
+(`TestHostedNeverLeaksTheAPIKeyIntoErrors`).
+
 ## Config formatı (taslak)
 
 ```yaml

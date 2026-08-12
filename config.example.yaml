@@ -1,0 +1,87 @@
+# mcp-audit configuration.
+#
+# This file is entirely optional. With no config at all mcp-audit runs in
+# shadow mode: it records every JSON-RPC message to ~/.mcp-audit/logs/events.jsonl
+# and blocks nothing.
+#
+# To use it, copy this file to one of:
+#   ./mcp-audit.yaml
+#   ~/.mcp-audit/config.yaml
+# or pass it explicitly with --config, or point MCP_AUDIT_CONFIG at it.
+#
+# Windows paths: write them with forward slashes ("C:/Users/you/logs.jsonl") or
+# in single quotes ('C:\Users\you\logs.jsonl'). Inside YAML double quotes a
+# backslash is an escape character, so "C:\Users\..." is a parse error.
+
+# Which proxy mode this config is written for. Informational only — the
+# subcommand you run (`run` or `serve`) is what actually decides.
+mode: stdio # or "http"
+
+policy:
+  rbac:
+    # What happens when no rule matches. "allow" is the shadow-mode default.
+    default: allow
+
+    # Rules are optional. Leave this out entirely and nothing is ever blocked.
+    #
+    # Matching:
+    #   - "client" is matched against the MCP session id (HTTP mode) or the
+    #     --client-id flag (stdio mode). "*" matches every client.
+    #   - "deny" always wins over "allow".
+    #   - A non-empty "allow" list is exhaustive: a tool that is not in it is
+    #     refused, even when the default is "allow".
+    #   - "*" is a wildcard inside patterns too, so "shell_*" works.
+    rules: []
+    # rules:
+    #   - client: "*"
+    #     deny: ["shell_exec", "delete_*"]
+    #   - client: "ci-*"
+    #     allow: ["read_file", "list_users"]
+
+  # Rug-pull detection: remember a SHA-256 fingerprint of every tool's
+  # description and input schema, and raise an alarm when a tool that was
+  # already approved quietly changes what it claims to do.
+  rug_pull_detection: true
+
+  # Tool-poisoning heuristics: scan tool descriptions and schema field
+  # descriptions for prompt-injection patterns — instruction overrides, hidden
+  # <IMPORTANT> markup, "do not tell the user", references to ~/.ssh or .env,
+  # exfiltration URLs, and invisible Unicode characters.
+  poisoning_heuristics: true
+
+  # Where the tool fingerprints are remembered between runs. This file has to
+  # outlive the process: a rug pull happens days after the tool was approved.
+  state_path: "~/.mcp-audit/state/tools.json"
+
+sinks:
+  # The local log is always on and cannot be disabled — only moved.
+  jsonl:
+    path: "~/.mcp-audit/logs/events.jsonl"
+
+  # Optional, best-effort. A failure here never slows down or blocks the
+  # proxied MCP traffic: delivery gets four tries over about three seconds,
+  # then the event is dropped from this sink only. The local log is unaffected.
+  webhook:
+    enabled: false
+    url: ""
+
+    # Payload shape: "auto" (default), "generic", "slack" or "discord".
+    # "auto" recognises hooks.slack.com and discord.com/api/webhooks URLs and
+    # treats everything else as generic.
+    #   generic — POSTs the audit event itself as JSON, for a SIEM
+    #   slack   — POSTs {"text": "..."} with a one-line summary
+    #   discord — POSTs {"content": "..."} with the same summary
+    format: auto
+
+    # Which events to ship: "all" or "flagged".
+    # Defaults to "all" for the generic format and "flagged" for the chat
+    # formats — a busy agent would otherwise flood a Slack channel with
+    # every ping. "flagged" means only events the policy engine marked:
+    # rbac_denied, rug_pull, poisoning_suspect.
+    send: ""
+
+  # Optional hosted backend (Team tier). Weeks 4-6.
+  hosted:
+    enabled: false
+    api_key: ""
+    endpoint: "https://api.mcp-audit.dev/v1/events"

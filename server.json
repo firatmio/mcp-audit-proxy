@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.firatmio/mcp-audit-proxy",
+  "title": "mcp-audit",
+  "description": "A transparent audit proxy for MCP servers. Records every tool call to a local JSONL log and flags tool poisoning and rug pulls.",
+  "version": "0.1.0",
+  "websiteUrl": "https://github.com/firatmio/mcp-audit-proxy#readme",
+  "repository": {
+    "url": "https://github.com/firatmio/mcp-audit-proxy",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "mcp-audit-proxy",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

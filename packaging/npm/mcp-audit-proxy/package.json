@@ -1,0 +1,40 @@
+{
+  "name": "mcp-audit-proxy",
+  "version": "0.1.0",
+  "description": "A transparent audit proxy for MCP servers: records every tool call, detects tool poisoning and rug pulls",
+  "mcpName": "io.github.firatmio/mcp-audit-proxy",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "audit",
+    "security",
+    "logging",
+    "proxy",
+    "observability",
+    "tool-poisoning"
+  ],
+  "homepage": "https://github.com/firatmio/mcp-audit-proxy#readme",
+  "bugs": "https://github.com/firatmio/mcp-audit-proxy/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/firatmio/mcp-audit-proxy.git"
+  },
+  "license": "Apache-2.0",
+  "bin": {
+    "mcp-audit": "bin/mcp-audit.js"
+  },
+  "files": [
+    "bin/mcp-audit.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "mcp-audit-proxy-darwin-arm64": "0.1.0",
+    "mcp-audit-proxy-darwin-x64": "0.1.0",
+    "mcp-audit-proxy-linux-arm64": "0.1.0",
+    "mcp-audit-proxy-linux-x64": "0.1.0",
+    "mcp-audit-proxy-win32-x64": "0.1.0"
+  }
+}

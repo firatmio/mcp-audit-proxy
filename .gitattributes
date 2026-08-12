@@ -1,0 +1,23 @@
+# Normalise line endings so a checkout behaves the same on every machine.
+#
+# This matters beyond tidiness: a shell script that lands with CRLF fails on
+# Linux with a confusing "bad interpreter" error, and contributors have wildly
+# different core.autocrlf settings.
+* text=auto eol=lf
+
+# Anything executed must keep LF, always.
+*.sh text eol=lf
+*.go text eol=lf
+
+# Windows-only files may keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never touch these.
+*.exe binary
+*.png binary
+*.gif binary
+*.cast binary
+
+# Keep generated Go files out of the diff view and out of language stats.
+go.sum linguist-generated=true

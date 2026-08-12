@@ -1,0 +1,28 @@
+{
+  "_comment": "Cursor. Project-scoped: .cursor/mcp.json in the repo root. Global: ~/.cursor/mcp.json. Remove the _comment keys before use.",
+
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-audit",
+      "args": [
+        "run",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ]
+    },
+
+    "windows-example": {
+      "_comment": "On Windows, give the full path to the .exe and double the backslashes — this is JSON.",
+      "command": "C:\\Users\\you\\go\\bin\\mcp-audit.exe",
+      "args": ["run", "--", "npx", "-y", "@modelcontextprotocol/server-memory"]
+    },
+
+    "remote-through-the-proxy": {
+      "_comment": "Run `mcp-audit serve --target https://example.com/mcp --listen 127.0.0.1:9000` separately, then point Cursor here.",
+      "url": "http://127.0.0.1:9000/mcp"
+    }
+  }
+}

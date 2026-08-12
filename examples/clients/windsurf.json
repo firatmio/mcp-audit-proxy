@@ -1,0 +1,35 @@
+{
+  "_comment": "Windsurf: ~/.codeium/windsurf/mcp_config.json. Remove the _comment keys before use.",
+
+  "mcpServers": {
+    "filesystem": {
+      "command": "mcp-audit",
+      "args": [
+        "run",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/you/projects"
+      ]
+    },
+
+    "quiet": {
+      "_comment": "--quiet drops the startup banner, for a tidier client log. Alarms and errors are still printed.",
+      "command": "mcp-audit",
+      "args": [
+        "run",
+        "--quiet",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+
+    "remote-through-the-proxy": {
+      "_comment": "Run `mcp-audit serve --target https://example.com/mcp --listen 127.0.0.1:9000` separately, then point Windsurf here.",
+      "serverUrl": "http://127.0.0.1:9000/mcp"
+    }
+  }
+}

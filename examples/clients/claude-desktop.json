@@ -1,0 +1,47 @@
+{
+  "_comment": "Claude Desktop. macOS: ~/Library/Application Support/Claude/claude_desktop_config.json — Windows: %APPDATA%\\Claude\\claude_desktop_config.json. Remove the _comment keys before use.",
+
+  "mcpServers": {
+    "filesystem": {
+      "_comment": "The original entry was command 'npx' with the args after '--'. Everything after '--' is untouched.",
+      "command": "mcp-audit",
+      "args": [
+        "run",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/you/Documents"
+      ]
+    },
+
+    "github": {
+      "_comment": "Environment variables still go to the wrapped server, not to mcp-audit.",
+      "command": "mcp-audit",
+      "args": ["run", "--", "npx", "-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    },
+
+    "with-policy": {
+      "_comment": "A named config file, so this server gets its own deny rules and its own audit log.",
+      "command": "mcp-audit",
+      "args": [
+        "run",
+        "--config",
+        "/Users/you/.mcp-audit/strict.yaml",
+        "--server-name",
+        "internal-tools",
+        "--",
+        "/usr/local/bin/my-mcp-server"
+      ]
+    },
+
+    "absolute-path-example": {
+      "_comment": "GUI apps do not inherit your shell PATH. If the client cannot find mcp-audit, use the full path.",
+      "command": "/usr/local/bin/mcp-audit",
+      "args": ["run", "--", "npx", "-y", "@modelcontextprotocol/server-memory"]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.test
+
+# Local configuration and audit logs — never commit these, they contain tool
+# arguments and can hold secrets.
+/mcp-audit.yaml
+/mcp-audit.yml
+*.jsonl
+
+# Go
+/vendor/
+coverage.out
+.VSCodeCounter/
+*.jsonl

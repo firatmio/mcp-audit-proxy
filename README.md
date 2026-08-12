@@ -256,3 +256,8 @@ mcp-audit run -- ./bin/dummy-mcp-server --rug-pull   # description changes after
 Project context lives in [`CLAUDE.md`](CLAUDE.md), the module layout and data
 model in [`ARCHITECTURE.md`](ARCHITECTURE.md), and the roadmap in
 [`PLAN.md`](PLAN.md).
+
+## License
+
+[Apache License 2.0](LICENSE) — free to use, modify and redistribute,
+commercially included, with an explicit patent grant. See [`NOTICE`](NOTICE).

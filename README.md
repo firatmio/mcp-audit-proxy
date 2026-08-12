@@ -1,7 +1,7 @@
 # mcp-audit
 
-[![CI](https://github.com/firatmio/mcp-audit-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/firatmio/mcp-audit-proxy/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/firatmio/mcp-audit-proxy.svg)](https://pkg.go.dev/github.com/firatmio/mcp-audit-proxy)
 
 **Wireshark + auditd, but for MCP.**
 

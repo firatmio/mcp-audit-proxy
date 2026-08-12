@@ -26,6 +26,14 @@ That is the whole setup. No config file, nothing blocked, everything recorded.
 
 ## Install
 
+Download a binary for your platform from the
+[latest release](https://github.com/firatmio/mcp-audit-proxy/releases/latest),
+or use npm:
+
+```bash
+npx mcp-audit-proxy run -- npx -y @modelcontextprotocol/server-filesystem /tmp
+```
+
 Build from source — Go 1.24 or newer, no other dependencies:
 
 ```bash

@@ -1,8 +1,0 @@
-name: selfhosted-probe
-on:
-  workflow_dispatch:
-jobs:
-  probe:
-    runs-on: self-hosted
-    steps:
-      - run: echo hello

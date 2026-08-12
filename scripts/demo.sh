@@ -75,7 +75,8 @@ printf '%s%sBuilding...%s\n' "$BOLD" "$CYAN" "$RESET"
 go build -o "$BIN/mcp-audit$EXE" ./cmd/mcp-audit
 go build -o "$DUMMY" ./cmd/dummy-mcp-server
 export PATH="$BIN:$PATH"
-clear
+# No TTY in CI, where this script doubles as an end-to-end smoke test.
+clear 2>/dev/null || true
 
 # A config that keeps everything inside the temp directory.
 cat > "$WORK/config.yaml" <<EOF

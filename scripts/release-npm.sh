@@ -110,20 +110,22 @@ cp "$REPO_ROOT/LICENSE" "$DIST/mcp-audit-proxy/" 2>/dev/null || \
 
 # Stamp the version into the launcher and into every optionalDependency, so the
 # launcher can only ever resolve binaries built from this same commit.
-python - "$LAUNCHER_SRC/package.json" "$DIST/mcp-audit-proxy/package.json" "$VERSION" <<'PY'
-import json, sys
+#
+# Done with node rather than python or sed: node is guaranteed to be present
+# wherever npm is, and editing JSON with a regex is how versions end up subtly
+# malformed.
+node -e '
+  const fs = require("node:fs");
+  const [source, target, version] = process.argv.slice(1);
+  const pkg = JSON.parse(fs.readFileSync(source, "utf8"));
 
-source, target, version = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(source, encoding="utf-8") as f:
-    pkg = json.load(f)
+  pkg.version = version;
+  for (const name of Object.keys(pkg.optionalDependencies ?? {})) {
+    pkg.optionalDependencies[name] = version;
+  }
 
-pkg["version"] = version
-pkg["optionalDependencies"] = {name: version for name in pkg.get("optionalDependencies", {})}
-
-with open(target, "w", encoding="utf-8") as f:
-    json.dump(pkg, f, indent=2)
-    f.write("\n")
-PY
+  fs.writeFileSync(target, JSON.stringify(pkg, null, 2) + "\n");
+' "$LAUNCHER_SRC/package.json" "$DIST/mcp-audit-proxy/package.json" "$VERSION"
 
 # --- verify -----------------------------------------------------------------
 

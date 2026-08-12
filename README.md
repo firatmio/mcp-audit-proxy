@@ -1,5 +1,8 @@
 # mcp-audit
 
+[![CI](https://github.com/firatmio/mcp-audit-proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/firatmio/mcp-audit-proxy/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 **Wireshark + auditd, but for MCP.**
 
 `mcp-audit` sits transparently in front of any MCP server and records every

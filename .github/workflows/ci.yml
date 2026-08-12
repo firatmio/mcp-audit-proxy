@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is not optional here: the stdio wrapper spawns processes and
+        # juggles pipes, and that is where the platform differences live.
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -count=1
+
+  race:
+    name: race detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Two stdio pump goroutines, a worker per sink and a shared correlation
+      # table make this the check that matters most for this codebase.
+      - name: Test with -race
+        run: go test -race ./... -count=1
+        env:
+          CGO_ENABLED: 1
+
+  lint:
+    name: vet and formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$unformatted"
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: go.mod is tidy
+        run: |
+          go mod tidy
+          if ! git diff --exit-code -- go.mod go.sum; then
+            echo "go.mod or go.sum is out of date; run 'go mod tidy'"
+            exit 1
+          fi
+
+  cross-compile:
+    name: cross-compile ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: darwin, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: linux, goarch: amd64 }
+          - { goos: windows, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Every one of these is a target the npm release ships, so a build
+      # failure here is a broken release, not a hypothetical.
+      - name: Build
+        run: go build -trimpath -ldflags "-s -w" ./cmd/...
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+  end-to-end:
+    name: end-to-end demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The demo script drives the real binaries through a full session: a
+      # normal tool call, a blocked one, a poisoned tool description and a rug
+      # pull. Asserting on its output turns the demo into an integration test —
+      # if a detector stops firing, this fails even though every unit test
+      # still passes. That is exactly the class of bug that got through before.
+      - name: Run the demo and assert the detectors fired
+        env:
+          TYPING_SPEED: 0
+          PAUSE: 0
+        run: |
+          output="$(./scripts/demo.sh 2>&1)"
+          printf '%s\n' "$output"
+
+          status=0
+          for expected in \
+            "blocked by mcp-audit policy" \
+            "possible tool poisoning" \
+            "rug pull"
+          do
+            if ! printf '%s' "$output" | grep -qF "$expected"; then
+              echo "::error::the demo never reported: $expected"
+              status=1
+            fi
+          done
+          exit $status
+
+  npm-package:
+    name: npm packaging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Assembles all six packages and checks the launcher resolves and runs
+      # the binary it just built. Never publishes: that needs --publish.
+      - name: Assemble the npm packages
+        run: ./scripts/release-npm.sh 0.0.0-ci

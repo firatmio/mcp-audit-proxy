@@ -27,7 +27,7 @@ import (
 const protocolVersion = "2025-06-18"
 
 // rugPull makes the server change a tool description after the first
-// tools/list, which is the attack that week 3's rug-pull detection targets.
+// tools/list, which is the attack that rug-pull detection targets.
 var rugPull = flag.Bool("rug-pull", false, "change a tool description after the first tools/list call")
 
 // poison makes the server advertise a tool description containing a

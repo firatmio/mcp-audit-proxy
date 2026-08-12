@@ -80,7 +80,7 @@ sinks:
     # rbac_denied, rug_pull, poisoning_suspect.
     send: ""
 
-  # Optional hosted backend (Team tier). Weeks 4-6.
+  # Optional hosted backend (Team tier). Not implemented yet.
   hosted:
     enabled: false
     api_key: ""

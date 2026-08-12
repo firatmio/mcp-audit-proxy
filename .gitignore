@@ -14,4 +14,10 @@
 /vendor/
 coverage.out
 .VSCodeCounter/
-*.jsonl
+
+# Internal working documents. These stay on disk but out of the repository:
+# they carry the business strategy — pricing, revenue targets, launch plan —
+# and this repository is going public.
+/CLAUDE.md
+/PLAN.md
+/launch/

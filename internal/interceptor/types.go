@@ -24,7 +24,7 @@ const (
 	// MethodToolsCall is the method whose params carry a tool name and arguments.
 	MethodToolsCall = "tools/call"
 	// MethodToolsList is the method whose result carries tool descriptions.
-	// Rug-pull detection (week 3) hangs off this.
+	// Rug-pull detection hangs off this.
 	MethodToolsList = "tools/list"
 )
 

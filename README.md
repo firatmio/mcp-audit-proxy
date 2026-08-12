@@ -256,9 +256,8 @@ mcp-audit run -- ./bin/dummy-mcp-server --rug-pull   # description changes after
 ./bin/dummy-mcp-server --http :8765                  # Streamable HTTP, for testing `serve`
 ```
 
-Project context lives in [`CLAUDE.md`](CLAUDE.md), the module layout and data
-model in [`ARCHITECTURE.md`](ARCHITECTURE.md), and the roadmap in
-[`PLAN.md`](PLAN.md).
+The module layout, the data model and the design decisions behind them are in
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## License
 

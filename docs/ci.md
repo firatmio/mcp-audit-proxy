@@ -30,6 +30,19 @@ The pipeline pins `golang:1.24` — the *minimum* version `go.mod` declares,
 not the newest. That way CI proves the `go 1.24` directive is honest instead
 of quietly relying on whatever newer toolchain the maintainer has installed.
 
+Every job has been run inside that exact image (Go 1.24.13, linux/amd64):
+build, vet, gofmt, tidy, tests, `-race`, all five cross-compile targets, the
+end-to-end demo with its detector assertions, and the npm packaging including
+the `apt-get install nodejs` step, which yields Node 20 and satisfies the
+launcher's `engines: >=18`.
+
+To repeat it without pushing:
+
+```bash
+docker run --rm -v "$PWD:/src" -w /src -e GOTOOLCHAIN=local golang:1.24 \
+  bash -c 'go test ./... && CGO_ENABLED=1 go test -race ./...'
+```
+
 ## Why also self-hosted
 
 Not a preference — GitHub-hosted runners are unavailable on this account, and

@@ -1,9 +1,20 @@
 name: CI
 
+# NOTE ON TRIGGERS — read before adding one.
+#
+# This workflow runs on a self-hosted runner, which means jobs execute on a
+# machine somebody owns rather than a disposable VM. On a public repository
+# that makes `pull_request` dangerous: anyone could open a PR whose workflow
+# runs arbitrary code on that machine.
+#
+# So the triggers are deliberately limited to events only a maintainer can
+# cause: a push to main, and a manual dispatch. Contributions are tested by
+# pulling the branch locally.
+#
+# Do not add `pull_request` here without moving to ephemeral runners first.
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -14,57 +25,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Windows is not optional here: the stdio wrapper spawns processes and
-        # juggles pipes, and that is where the platform differences live.
-        os: [ubuntu-latest, macos-latest, windows-latest]
+  ci:
+    # One job with sequential steps rather than a matrix: a single self-hosted
+    # runner executes one job at a time, so parallel jobs would only queue.
+    name: build, test and package
+    runs-on: [self-hosted, Windows]
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-          cache: true
+          # The runner is not disposable, so do not leave a credential behind
+          # in .git/config after the run.
+          persist-credentials: false
+
+      - name: Toolchain
+        run: |
+          go version
+          node --version
+          echo "go.mod requires: $(grep '^go ' go.mod)"
 
       - name: Build
         run: go build ./...
-
-      - name: Test
-        run: go test ./... -count=1
-
-  race:
-    name: race detector
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      # Two stdio pump goroutines, a worker per sink and a shared correlation
-      # table make this the check that matters most for this codebase.
-      - name: Test with -race
-        run: go test -race ./... -count=1
-        env:
-          CGO_ENABLED: 1
-
-  lint:
-    name: vet and formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
 
       - name: go vet
         run: go vet ./...
@@ -73,8 +57,7 @@ jobs:
         run: |
           unformatted="$(gofmt -l .)"
           if [ -n "$unformatted" ]; then
-            echo "These files are not gofmt'd:"
-            echo "$unformatted"
+            echo "::error::these files are not gofmt'd: $unformatted"
             gofmt -d .
             exit 1
           fi
@@ -83,60 +66,62 @@ jobs:
         run: |
           go mod tidy
           if ! git diff --exit-code -- go.mod go.sum; then
-            echo "go.mod or go.sum is out of date; run 'go mod tidy'"
+            echo "::error::go.mod or go.sum is out of date; run 'go mod tidy'"
             exit 1
           fi
 
-  cross-compile:
-    name: cross-compile ${{ matrix.goos }}/${{ matrix.goarch }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { goos: darwin, goarch: arm64 }
-          - { goos: darwin, goarch: amd64 }
-          - { goos: linux, goarch: arm64 }
-          - { goos: linux, goarch: amd64 }
-          - { goos: windows, goarch: amd64 }
-    steps:
-      - uses: actions/checkout@v4
+      - name: Test
+        run: go test ./... -count=1
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
+      - name: Test with -race
+        run: |
+          # Two stdio pump goroutines, a worker per sink and a shared
+          # correlation table make this the check that matters most here.
+          #
+          # The race detector needs a C toolchain. scoop installs mingw
+          # outside PATH, so find it before giving up.
+          for candidate in \
+            "$HOME/scoop/apps/mingw/current/bin" \
+            "/c/ProgramData/scoop/apps/mingw/current/bin" \
+            "/c/mingw64/bin"
+          do
+            [ -d "$candidate" ] && export PATH="$candidate:$PATH"
+          done
 
-      # Every one of these is a target the npm release ships, so a build
-      # failure here is a broken release, not a hypothetical.
-      - name: Build
-        run: go build -trimpath -ldflags "-s -w" ./cmd/...
-        env:
-          CGO_ENABLED: 0
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          if ! command -v gcc >/dev/null 2>&1; then
+            echo "::error::no C compiler found, so -race cannot run."
+            echo "Install one on the runner: scoop install mingw"
+            exit 1
+          fi
+          echo "using $(gcc --version | head -1)"
+          CGO_ENABLED=1 go test -race ./... -count=1
 
-  end-to-end:
-    name: end-to-end demo
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Cross-compile every release target
+        run: |
+          # Each of these is a target the release ships, so a failure here is
+          # a broken release rather than a hypothetical.
+          status=0
+          for target in "darwin arm64" "darwin amd64" "linux arm64" "linux amd64" "windows amd64"; do
+            set -- $target
+            if CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build -trimpath -ldflags "-s -w" -o /dev/null ./cmd/...; then
+              echo "  ok    $1/$2"
+            else
+              echo "::error::cross-compile failed for $1/$2"
+              status=1
+            fi
+          done
+          exit $status
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      # The demo script drives the real binaries through a full session: a
-      # normal tool call, a blocked one, a poisoned tool description and a rug
-      # pull. Asserting on its output turns the demo into an integration test —
-      # if a detector stops firing, this fails even though every unit test
-      # still passes. That is exactly the class of bug that got through before.
-      - name: Run the demo and assert the detectors fired
+      - name: End-to-end demo, with the detectors asserted
         env:
           TYPING_SPEED: 0
           PAUSE: 0
         run: |
+          # The demo drives the real binaries through a full session: a normal
+          # tool call, a blocked one, a poisoned description and a rug pull.
+          # Asserting on its output turns it into an integration test — every
+          # unit test once passed while the detectors were silently unwired,
+          # and only something like this would have caught it.
           output="$(./scripts/demo.sh 2>&1)"
           printf '%s\n' "$output"
 
@@ -153,22 +138,12 @@ jobs:
           done
           exit $status
 
-  npm-package:
-    name: npm packaging
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      # Assembles all six packages and checks the launcher resolves and runs
-      # the binary it just built. Never publishes: that needs --publish.
       - name: Assemble the npm packages
-        run: ./scripts/release-npm.sh 0.0.0-ci
+        run: |
+          # Builds all six packages and checks the launcher resolves and runs
+          # the binary it just built. Never publishes: that needs --publish.
+          ./scripts/release-npm.sh 0.0.0-ci
+
+      - name: Clean up build output
+        if: always()
+        run: rm -rf dist

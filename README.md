@@ -254,6 +254,11 @@ The race detector needs a C toolchain. On Windows, `scoop install mingw` (or
 MSYS2) provides one; the performance assertion skips itself under `-race`,
 since instrumented memory accesses measure the detector rather than the code.
 
+CI runs on a self-hosted runner and therefore only on pushes to `main` — see
+[`docs/ci.md`](docs/ci.md) for why, and for what would have to change before a
+`pull_request` trigger would be safe. Pull requests are tested by pulling the
+branch and running the suite locally.
+
 `cmd/dummy-mcp-server` is a stub MCP server for testing the proxy against. It
 speaks both stdio and Streamable HTTP and has flags for staging the attacks the
 detectors look for:

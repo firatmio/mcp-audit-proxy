@@ -12,18 +12,18 @@ import (
 
 	"github.com/firatmio/mcp-audit-proxy/internal/config"
 	"github.com/firatmio/mcp-audit-proxy/internal/interceptor"
+	"github.com/firatmio/mcp-audit-proxy/pkg/event"
 )
 
 // Policy flags attached to ToolCallEvent.PolicyFlags.
+//
+// The values live in pkg/event alongside the record itself: they are part of
+// the wire format, and a consumer filtering on "rug_pull" needs the same
+// spelling we write.
 const (
-	// FlagRBACDenied marks a tool call the RBAC rules refused.
-	FlagRBACDenied = "rbac_denied"
-	// FlagRugPull marks a tools/list result in which a previously recorded
-	// tool changed its description or schema.
-	FlagRugPull = "rug_pull"
-	// FlagPoisoningSuspect marks a tools/list result carrying a tool
-	// description that looks like a prompt-injection attempt.
-	FlagPoisoningSuspect = "poisoning_suspect"
+	FlagRBACDenied       = event.FlagRBACDenied
+	FlagRugPull          = event.FlagRugPull
+	FlagPoisoningSuspect = event.FlagPoisoningSuspect
 )
 
 // Decision is the outcome of evaluating one event.

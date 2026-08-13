@@ -8,58 +8,29 @@ package interceptor
 
 import (
 	"encoding/json"
-	"time"
+
+	"github.com/firatmio/mcp-audit-proxy/pkg/event"
 )
+
+// The audit record itself lives in pkg/event, because it is the wire format
+// and anything on the other end of that wire — a hosted backend, a SIEM
+// adapter — needs the same definition rather than a restatement of it. These
+// aliases keep the rest of this module writing interceptor.ToolCallEvent.
+
+// ToolCallEvent is the canonical audit record. See pkg/event.
+type ToolCallEvent = event.ToolCallEvent
 
 // Direction values carried by ToolCallEvent.Direction.
 const (
-	// DirectionRequest marks a message travelling from client to server.
-	DirectionRequest = "request"
-	// DirectionResponse marks a message travelling from server to client.
-	DirectionResponse = "response"
+	DirectionRequest  = event.DirectionRequest
+	DirectionResponse = event.DirectionResponse
 )
 
 // MCP JSON-RPC method names the interceptor gives special treatment.
 const (
-	// MethodToolsCall is the method whose params carry a tool name and arguments.
-	MethodToolsCall = "tools/call"
-	// MethodToolsList is the method whose result carries tool descriptions.
-	// Rug-pull detection hangs off this.
-	MethodToolsList = "tools/list"
+	MethodToolsCall = event.MethodToolsCall
+	MethodToolsList = event.MethodToolsList
 )
-
-// ToolCallEvent is the canonical audit record produced for every JSON-RPC
-// message that crosses the proxy, in either direction. It is the struct that
-// gets serialised to JSONL and shipped to every other sink.
-type ToolCallEvent struct {
-	Timestamp   time.Time       `json:"timestamp"`
-	EventID     string          `json:"event_id"`    // UUID, for idempotent ingest
-	ClientID    string          `json:"client_id"`   // which MCP client, when known
-	ServerName  string          `json:"server_name"` // which MCP server
-	Direction   string          `json:"direction"`   // "request" | "response"
-	Method      string          `json:"method"`      // JSON-RPC method name
-	ToolName    string          `json:"tool_name,omitempty"`
-	Arguments   json.RawMessage `json:"arguments,omitempty"`
-	Result      json.RawMessage `json:"result,omitempty"`
-	Error       string          `json:"error,omitempty"`
-	PolicyFlags []string        `json:"policy_flags,omitempty"` // rug_pull, poisoning_suspect, ...
-}
-
-// IsToolCall reports whether the event describes an MCP "tools/call" exchange,
-// which is the only method the RBAC layer currently acts on.
-func (e *ToolCallEvent) IsToolCall() bool {
-	return e.Method == MethodToolsCall
-}
-
-// AddFlag appends a policy flag once, keeping PolicyFlags free of duplicates.
-func (e *ToolCallEvent) AddFlag(flag string) {
-	for _, existing := range e.PolicyFlags {
-		if existing == flag {
-			return
-		}
-	}
-	e.PolicyFlags = append(e.PolicyFlags, flag)
-}
 
 // rpcMessage is the wire-level JSON-RPC 2.0 envelope. Every field is optional
 // at the JSON level because requests, notifications, responses and errors all

@@ -1,0 +1,137 @@
+# GitLab CI
+#
+# GitHub Actions is unavailable on this account (billing lock), so Linux CI
+# runs here instead. GitHub remains the canonical home; GitLab is only a
+# runner. See docs/ci.md.
+#
+# The image is pinned to the *minimum* Go version go.mod declares rather than
+# the latest. That way CI proves the `go 1.24` directive is honest, instead of
+# quietly depending on a newer toolchain the maintainer happens to have.
+
+default:
+  image: golang:1.24
+  interruptible: true
+
+variables:
+  # Keep the module and build caches inside the project directory; GitLab can
+  # only cache paths under it.
+  GOPATH: $CI_PROJECT_DIR/.go
+  GOCACHE: $CI_PROJECT_DIR/.gocache
+  # Do not let Go silently download a different toolchain: the point of
+  # pinning the image is to test against 1.24.
+  GOTOOLCHAIN: local
+  GIT_DEPTH: "20"
+
+cache:
+  key:
+    files:
+      - go.sum
+  paths:
+    - .go/pkg/mod
+    - .gocache
+
+stages:
+  - check
+  - package
+
+# ---------------------------------------------------------------------------
+
+test:
+  stage: check
+  script:
+    - go version
+    - echo "go.mod requires: $(grep '^go ' go.mod)"
+
+    - echo "== build =="
+    - go build ./...
+
+    - echo "== go vet =="
+    - go vet ./...
+
+    - echo "== gofmt =="
+    - |
+      unformatted="$(gofmt -l .)"
+      if [ -n "$unformatted" ]; then
+        echo "these files are not gofmt'd: $unformatted"
+        gofmt -d .
+        exit 1
+      fi
+
+    - echo "== go.mod is tidy =="
+    - |
+      go mod tidy
+      if ! git diff --exit-code -- go.mod go.sum; then
+        echo "go.mod or go.sum is out of date; run 'go mod tidy'"
+        exit 1
+      fi
+
+    - echo "== test =="
+    - go test ./... -count=1
+
+    # Two stdio pump goroutines, a worker per sink and a shared correlation
+    # table make this the check that matters most for this codebase. The
+    # golang image ships a C toolchain, so unlike on Windows there is nothing
+    # to hunt for.
+    - echo "== test -race =="
+    - CGO_ENABLED=1 go test -race ./... -count=1
+
+    - echo "== cross-compile every release target =="
+    - |
+      status=0
+      for target in "darwin arm64" "darwin amd64" "linux arm64" "linux amd64" "windows amd64"; do
+        set -- $target
+        if CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build -trimpath -ldflags "-s -w" -o /dev/null ./cmd/...; then
+          echo "  ok    $1/$2"
+        else
+          echo "  FAIL  $1/$2"
+          status=1
+        fi
+      done
+      exit $status
+
+# ---------------------------------------------------------------------------
+
+end-to-end:
+  stage: check
+  variables:
+    TYPING_SPEED: "0"
+    PAUSE: "0"
+  script:
+    # The demo drives the real binaries through a full session: a normal tool
+    # call, a blocked one, a poisoned description and a rug pull. Asserting on
+    # its output turns it into an integration test — every unit test once
+    # passed while the detectors were silently unwired, and only a check
+    # against the real output would have caught it.
+    - |
+      output="$(./scripts/demo.sh 2>&1)"
+      printf '%s\n' "$output"
+
+      status=0
+      for expected in \
+        "blocked by mcp-audit policy" \
+        "possible tool poisoning" \
+        "rug pull"
+      do
+        if ! printf '%s' "$output" | grep -qF "$expected"; then
+          echo "the demo never reported: $expected"
+          status=1
+        fi
+      done
+      exit $status
+
+# ---------------------------------------------------------------------------
+
+npm-package:
+  stage: package
+  script:
+    # Node is needed to stamp versions and to run `npm publish --dry-run`.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends nodejs npm
+    - node --version
+    # Assembles all six packages and checks the launcher resolves and runs the
+    # binary it just built. Never publishes: that needs --publish.
+    - ./scripts/release-npm.sh 0.0.0-ci
+  artifacts:
+    when: on_failure
+    paths:
+      - dist/npm
+    expire_in: 3 days

@@ -1,8 +1,36 @@
 # CI
 
-CI runs on a **self-hosted runner** rather than GitHub-hosted ones.
+CI runs in two places, for one reason: GitHub-hosted runners are unavailable
+on this account.
 
-## Why self-hosted
+| Where | Platform | Config | Always on |
+|---|---|---|---|
+| GitLab CI | Linux | `.gitlab-ci.yml` | yes |
+| GitHub Actions, self-hosted | Windows | `.github/workflows/ci.yml` | only while the runner is up |
+
+GitHub remains the canonical home. GitLab is a runner and nothing else.
+
+## GitLab
+
+GitLab's free tier includes 400 compute minutes a month, which is far more
+than this project needs, and its runners are ephemeral — so unlike the
+self-hosted setup there is no reason to restrict which events may trigger it.
+
+Getting commits there does **not** need GitLab's mirroring features, which are
+Premium. Push to both remotes instead:
+
+```bash
+git remote set-url --add --push origin https://github.com/firatmio/mcp-audit-proxy.git
+git remote set-url --add --push origin https://gitlab.com/<user>/mcp-audit-proxy.git
+```
+
+After that a plain `git push` reaches both.
+
+The pipeline pins `golang:1.24` — the *minimum* version `go.mod` declares,
+not the newest. That way CI proves the `go 1.24` directive is honest instead
+of quietly relying on whatever newer toolchain the maintainer has installed.
+
+## Why also self-hosted
 
 Not a preference — GitHub-hosted runners are unavailable on this account, and
 every job is refused before a step runs:

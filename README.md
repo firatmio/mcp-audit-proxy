@@ -31,15 +31,28 @@ mcp-audit audit log: /home/you/.mcp-audit/logs/events.jsonl
 
 That is the whole setup. No config file, nothing blocked, everything recorded.
 
+<!-- TODO(readme): demo GIF, about 30 seconds, recorded from scripts/demo.sh:
+     a normal session, a blocked call, a poisoned description, a rug pull, then
+     `lock diff` and `lock approve`. Embed it here as docs/demo.gif. -->
+
+[`scripts/demo.sh`](scripts/demo.sh) runs the whole story end to end against a
+stub server, in a temp directory that leaves your real state alone:
+
+```bash
+./scripts/demo.sh                     # watch it
+TYPING_SPEED=0 PAUSE=0 ./scripts/demo.sh   # run it instantly, as a smoke test
+```
+
 ## Install
 
-Download a binary for your platform from the
-[latest release](https://github.com/firatmio/mcp-audit-proxy/releases/latest),
-or use npm:
+No install needed — run it through npm, in front of the server you already use:
 
 ```bash
 npx mcp-audit-proxy run -- npx -y @modelcontextprotocol/server-filesystem /tmp
 ```
+
+Or download a binary for your platform from the
+[latest release](https://github.com/firatmio/mcp-audit-proxy/releases/latest).
 
 Build from source — Go 1.24 or newer, no other dependencies:
 
@@ -164,7 +177,11 @@ The result set is small and comes from a single server, so treat its rate as a
 first reading rather than a settled number.
 
 This measures false alarms only. It says nothing about how many attacks the
-heuristics catch: a detector that flags nothing would score 0% here too.
+heuristics catch: a detector that flags nothing would score 0% here too. A
+detection rate needs a corpus of real attacks, which does not exist here yet.
+
+<!-- TODO(readme): add the detection-rate table once the attack corpus lands
+     (roadmap step 1, second half). Until then, no detection numbers. -->
 
 ### Prompt injection in tool results
 
@@ -255,6 +272,28 @@ policy:
 mcp-audit: blocked: tool "shell_exec" is denied by rule for client "*" (deny: "shell_exec")
 ```
 
+## How it compares
+
+<!-- TODO(readme): every cell below that is not about mcp-audit must be checked
+     against the tool's own current documentation before this is published.
+     Cells marked "?" have not been verified at all. Keep the tone factual:
+     what each tool does, not what it lacks. -->
+
+| | mcp-audit | [agent-scan](https://github.com/snyk/agent-scan) (formerly Invariant's mcp-scan) | [mcp-context-protector](https://github.com/trailofbits/mcp-context-protector) | [P4ST4S/mcp-audit](https://github.com/P4ST4S/mcp-audit) |
+|---|---|---|---|---|
+| Sits in front of the server at runtime | yes (stdio and HTTP) | ? | yes (wrapper) | ? |
+| Pins tools and alarms on change until approved | yes (`lock`) | ? | yes (trust on first use) | ? |
+| Scans tool descriptions | yes | ? | ? | ? |
+| Scans tool results | yes | ? | ? | ? |
+| Records every call to a local log | yes (JSONL) | ? | ? | ? (HMAC-signed logs) |
+| Works with no account or network service | yes | ? | ? | ? |
+| Measured false-positive rate published | yes (see above) | ? | ? | ? |
+
+Sources for the filled cells: mcp-audit, this repository; agent-scan's name,
+the GitHub redirect from `invariantlabs-ai/mcp-scan`; mcp-context-protector,
+Trail of Bits' [announcement](https://blog.trailofbits.com/2025/04/21/jumping-the-line-how-mcp-servers-can-attack-you-before-you-ever-use-them/)
+("trust-on-first-use pinning of server configurations").
+
 ## Configuration
 
 Entirely optional. See [`config.example.yaml`](config.example.yaml) for the
@@ -332,20 +371,6 @@ one. An HTTP server is named after its `--target` URL.
   refuses a call is an RBAC rule you wrote.
 - **Nothing leaves the machine by default.** The log, the tool fingerprints and
   every check are local. Events go elsewhere only if you configure a webhook.
-
-## Demo
-
-[`scripts/demo.sh`](scripts/demo.sh) runs the whole story end to end — a normal
-session, a blocked call, a poisoned tool description and a rug pull — against
-the stub server, in a temp directory that leaves your real state alone.
-
-```bash
-./scripts/demo.sh                                  # watch it
-asciinema rec -c ./scripts/demo.sh mcp-audit.cast  # record it
-```
-
-`TYPING_SPEED=0 PAUSE=0 ./scripts/demo.sh` runs it instantly, which is handy as
-a smoke test.
 
 ## Development
 

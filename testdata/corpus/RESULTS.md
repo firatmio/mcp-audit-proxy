@@ -5,9 +5,10 @@ the test fails when this file and the detectors disagree.
 
 ## Summary
 
-| Benign set | Tools | Flagged | False-positive rate |
+| Benign set | Items | Flagged | False-positive rate |
 |---|--:|--:|--:|
 | Tool descriptions from 15 real MCP servers | 213 | 1 | 0.5% |
+| Tool results from 1 real MCP server | 35 | 0 | 0.0% |
 
 ## Heuristics behind the false positives
 
@@ -42,3 +43,9 @@ A tool can match more than one heuristic.
 | Server | Tool | Heuristics that matched |
 |---|---|---|
 | playwright-mcp | `browser_file_upload` | exfiltration |
+
+## Tool results
+
+Scanned with the result heuristics (`policy.ResultRules`), not the description ones.
+
+No false positives.

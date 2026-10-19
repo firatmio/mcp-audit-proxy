@@ -53,10 +53,14 @@ type Config struct {
 // Policy holds the security-engine settings.
 type Policy struct {
 	RBAC RBAC `yaml:"rbac"`
-	// RugPullDetection and PoisoningHeuristics are pointers so that "absent"
-	// is distinguishable from "explicitly false" and defaults can apply.
+	// The detector switches are pointers so that "absent" is
+	// distinguishable from "explicitly false" and defaults can apply.
 	RugPullDetection    *bool `yaml:"rug_pull_detection"`
 	PoisoningHeuristics *bool `yaml:"poisoning_heuristics"`
+	// ResultScanning scans what tools/call returns for prompt injection: the
+	// route by which a document, web page or issue the agent reads can steer
+	// it, without any malicious server involved.
+	ResultScanning *bool `yaml:"result_scanning"`
 	// StatePath is where tool fingerprints are remembered between runs.
 	StatePath string `yaml:"state_path"`
 }
@@ -70,6 +74,12 @@ func (p *Policy) RugPullEnabled() bool {
 // Absent means on.
 func (p *Policy) PoisoningEnabled() bool {
 	return p.PoisoningHeuristics == nil || *p.PoisoningHeuristics
+}
+
+// ResultScanningEnabled reports whether tool results should be scanned.
+// Absent means on.
+func (p *Policy) ResultScanningEnabled() bool {
+	return p.ResultScanning == nil || *p.ResultScanning
 }
 
 // RBAC is the allow/deny configuration for tool calls.
@@ -181,7 +191,7 @@ type RemovedHostedSink struct {
 // Default returns the zero-config configuration: log everything locally, block
 // nothing, ship nothing off the machine.
 func Default() Config {
-	rugPull, poisoning := true, true
+	rugPull, poisoning, results := true, true, true
 	return Config{
 		Policy: Policy{
 			RBAC: RBAC{
@@ -189,6 +199,7 @@ func Default() Config {
 			},
 			RugPullDetection:    &rugPull,
 			PoisoningHeuristics: &poisoning,
+			ResultScanning:      &results,
 			StatePath:           DefaultStatePath,
 		},
 		Sinks: Sinks{
@@ -202,6 +213,9 @@ func (c *Config) RugPullEnabled() bool { return c.Policy.RugPullEnabled() }
 
 // PoisoningEnabled reports whether tool-poisoning heuristics should run.
 func (c *Config) PoisoningEnabled() bool { return c.Policy.PoisoningEnabled() }
+
+// ResultScanningEnabled reports whether tool results should be scanned.
+func (c *Config) ResultScanningEnabled() bool { return c.Policy.ResultScanningEnabled() }
 
 // Load reads configuration for the given path.
 //

@@ -49,6 +49,12 @@ policy:
   # exfiltration URLs, and invisible Unicode characters.
   poisoning_heuristics: true
 
+  # Result scanning: look for prompt injection in what tools return — the page,
+  # issue or document an agent reads can carry instructions too. Only the first
+  # 64 KiB of text in each result is scanned, base64 payloads are skipped, and
+  # like every detector here it flags and never blocks.
+  result_scanning: true
+
   # Where the tool fingerprints are remembered between runs. This file has to
   # outlive the process: a rug pull happens days after the tool was approved.
   state_path: "~/.mcp-audit/state/tools.json"

@@ -35,7 +35,7 @@ func TestDefaultIsShadowModeAndValid(t *testing.T) {
 	if cfg.Sinks.Webhook.Enabled || cfg.Sinks.Hosted != nil {
 		t.Error("optional sinks must be off by default; nothing leaves the machine unasked")
 	}
-	if !cfg.RugPullEnabled() || !cfg.PoisoningEnabled() {
+	if !cfg.RugPullEnabled() || !cfg.PoisoningEnabled() || !cfg.ResultScanningEnabled() {
 		t.Error("security heuristics must default to on")
 	}
 }
@@ -113,6 +113,7 @@ policy:
         deny: ["shell_exec"]
   rug_pull_detection: false
   poisoning_heuristics: true
+  result_scanning: false
 
 sinks:
   jsonl:
@@ -149,6 +150,9 @@ sinks:
 	}
 	if !cfg.PoisoningEnabled() {
 		t.Error("PoisoningEnabled() = false, the file set it to true")
+	}
+	if cfg.ResultScanningEnabled() {
+		t.Error("ResultScanningEnabled() = true, the file set it to false")
 	}
 	if cfg.Sinks.JSONL.Path != "/var/log/mcp/events.jsonl" {
 		t.Errorf("jsonl path = %q", cfg.Sinks.JSONL.Path)
@@ -370,5 +374,17 @@ func TestLoadFindsConfigInWorkingDirectory(t *testing.T) {
 	}
 	if cfg.Mode != ModeHTTP {
 		t.Errorf("Mode = %q, want the config found in the working directory to apply", cfg.Mode)
+	}
+}
+
+func TestResultScanningIsOnWhenAbsent(t *testing.T) {
+	// A config written before result scanning existed has no key for it; it
+	// must get the default, not a silent off.
+	cfg, err := Load(writeConfig(t, "policy:\n  poisoning_heuristics: true\n"))
+	if err != nil {
+		t.Fatalf("Load error = %v", err)
+	}
+	if !cfg.ResultScanningEnabled() {
+		t.Error("result scanning is off in a config that does not mention it")
 	}
 }

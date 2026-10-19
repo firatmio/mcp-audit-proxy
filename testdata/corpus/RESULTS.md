@@ -7,16 +7,12 @@ the test fails when this file and the detectors disagree.
 
 | Benign set | Items | Flagged | False-positive rate |
 |---|--:|--:|--:|
-| Tool descriptions from 15 real MCP servers | 213 | 1 | 0.5% |
+| Tool descriptions from 15 real MCP servers | 213 | 0 | 0.0% |
 | Tool results from 1 real MCP server | 35 | 0 | 0.0% |
 
 ## Heuristics behind the false positives
 
-| Heuristic | Benign tools it matched |
-|---|--:|
-| `exfiltration` | 1 |
-
-A tool can match more than one heuristic.
+None.
 
 ## By server
 
@@ -30,7 +26,7 @@ A tool can match more than one heuristic.
 | mcp-server-git | 12 | 0 |
 | mcp-server-time | 2 | 0 |
 | notion-mcp-server | 24 | 0 |
-| playwright-mcp | 25 | 1 |
+| playwright-mcp | 25 | 0 |
 | server-everything | 16 | 0 |
 | server-filesystem | 14 | 0 |
 | server-github | 26 | 0 |
@@ -40,9 +36,7 @@ A tool can match more than one heuristic.
 
 ## Every false positive
 
-| Server | Tool | Heuristics that matched |
-|---|---|---|
-| playwright-mcp | `browser_file_upload` | exfiltration |
+None.
 
 ## Tool results
 

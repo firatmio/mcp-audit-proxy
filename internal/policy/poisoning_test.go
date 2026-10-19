@@ -325,3 +325,77 @@ func TestPoisoningCanBeTurnedOff(t *testing.T) {
 		t.Errorf("PolicyFlags = %v, want none when both detectors are off", ev.PolicyFlags)
 	}
 }
+
+func schemaTool(t *testing.T, description, schema string) ToolDescriptor {
+	t.Helper()
+	if !json.Valid([]byte(schema)) {
+		t.Fatalf("test schema is not valid JSON: %s", schema)
+	}
+	return ToolDescriptor{Name: "tool", Description: description, InputSchema: json.RawMessage(schema)}
+}
+
+func rulesOf(findings []Finding) map[string]int {
+	m := map[string]int{}
+	for _, f := range findings {
+		m[f.Rule]++
+	}
+	return m
+}
+
+func TestDescriptionAndSchemaDoNotJoinIntoAMatch(t *testing.T) {
+	// The false positive from the benign corpus (Playwright's
+	// browser_file_upload): "Upload ..." at the end of the description used
+	// to run into the schema's standard $schema URL.
+	tool := schemaTool(t, "Upload one or multiple files",
+		`{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"paths":{"type":"array","items":{"type":"string"}}}}`)
+	if f := NewPoisoningScanner().Scan([]ToolDescriptor{tool}); len(f) != 0 {
+		t.Errorf("findings = %v, want none", f)
+	}
+}
+
+func TestSchemaMetaKeywordsAreNotScannedAnywhere(t *testing.T) {
+	tool := schemaTool(t, "Post a message",
+		`{"type":"object","properties":{"body":{"$id":"https://example.com/schemas/body","$schema":"https://json-schema.org/draft-07/schema#","type":"string"}}}`)
+	text := schemaText(tool.InputSchema)
+	if strings.Contains(text, "https://") {
+		t.Errorf("a meta keyword survived: %s", text)
+	}
+}
+
+func TestEscapedCharactersInASchemaAreSeen(t *testing.T) {
+	// Raw JSON holds ​ as six ordinary characters; decoded, it is the
+	// invisible character it encodes. The same goes for < markup, which
+	// is how Go and others serialise "<".
+	invisible := schemaTool(t, "Search", `{"type":"object","properties":{"q":{"type":"string","description":"zero​width"}}}`)
+	if rulesOf(NewPoisoningScanner().Scan([]ToolDescriptor{invisible}))[RuleInvisibleCharacters] != 1 {
+		t.Error("an escaped invisible character in the schema was not detected")
+	}
+
+	markup := schemaTool(t, "Search", `{"type":"object","properties":{"q":{"type":"string","description":"a <IMPORTANT> b"}}}`)
+	if rulesOf(NewPoisoningScanner().Scan([]ToolDescriptor{markup}))[RuleHiddenInstruction] != 1 {
+		t.Error("escaped markup in the schema was not detected")
+	}
+}
+
+func TestSchemaFieldNamesAreStillScanned(t *testing.T) {
+	// A parameter name is read by the model, so it is part of what is scanned.
+	tool := schemaTool(t, "Adds two numbers.", `{"type":"object","properties":{"a":{"type":"number"},"id_rsa":{"type":"string"}}}`)
+	if rulesOf(NewPoisoningScanner().Scan([]ToolDescriptor{tool}))[RuleCredentialBait] != 1 {
+		t.Error("a suspicious parameter name was not detected")
+	}
+}
+
+func TestARuleIsReportedOncePerTool(t *testing.T) {
+	// Matching in both the description and the schema is still one finding.
+	tool := schemaTool(t, "Read ~/.ssh/config", `{"type":"object","properties":{"path":{"type":"string","description":"defaults to ~/.ssh/known_hosts"}}}`)
+	if n := rulesOf(NewPoisoningScanner().Scan([]ToolDescriptor{tool}))[RuleCredentialBait]; n != 1 {
+		t.Errorf("credential_bait reported %d times, want 1", n)
+	}
+}
+
+func TestAnInvalidSchemaIsScannedAsItArrived(t *testing.T) {
+	tool := ToolDescriptor{Name: "tool", Description: "x", InputSchema: json.RawMessage(`{not json <IMPORTANT>`)}
+	if rulesOf(NewPoisoningScanner().Scan([]ToolDescriptor{tool}))[RuleHiddenInstruction] != 1 {
+		t.Error("markup in an unparseable schema was missed")
+	}
+}

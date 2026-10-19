@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -118,40 +119,94 @@ func NewPoisoningScanner() *PoisoningScanner { return &PoisoningScanner{} }
 
 // Scan checks every tool's description and returns what looks suspicious.
 //
-// The input schema is scanned too: a schema's field descriptions land in the
-// model's context just as surely as the tool description does.
+// The input schema is scanned too: a schema's field names and descriptions
+// land in the model's context just as surely as the tool description does.
+//
+// The two are scanned as separate texts. Joined into one string, the end of a
+// description and the start of a schema could form a match neither contains:
+// Playwright's "Upload one or multiple files" followed by the schema's
+// standard "$schema": "https://json-schema.org/..." read as an upload to a
+// URL. Each rule is still reported at most once per tool.
 func (s *PoisoningScanner) Scan(tools []ToolDescriptor) []Finding {
 	var findings []Finding
 
 	for _, tool := range tools {
-		text := tool.Description
-		if len(tool.InputSchema) > 0 {
-			text += "\n" + string(tool.InputSchema)
-		}
-		if strings.TrimSpace(text) == "" {
-			continue
-		}
-
-		for _, rule := range patternRules {
-			if match := rule.pattern.FindString(text); match != "" {
-				findings = append(findings, Finding{
-					Tool:    tool.Name,
-					Rule:    rule.name,
-					Excerpt: excerpt(match),
-				})
+		texts := []string{tool.Description, schemaText(tool.InputSchema)}
+		reported := map[string]bool{}
+		report := func(rule, match string) {
+			if reported[rule] {
+				return
 			}
+			reported[rule] = true
+			findings = append(findings, Finding{Tool: tool.Name, Rule: rule, Excerpt: match})
 		}
 
-		if name, found := firstInvisibleRune(text); found {
-			findings = append(findings, Finding{
-				Tool:    tool.Name,
-				Rule:    RuleInvisibleCharacters,
-				Excerpt: name,
-			})
+		for _, text := range texts {
+			if strings.TrimSpace(text) == "" {
+				continue
+			}
+			for _, rule := range patternRules {
+				if match := rule.pattern.FindString(text); match != "" {
+					report(rule.name, excerpt(match))
+				}
+			}
+			if name, found := firstInvisibleRune(text); found {
+				report(RuleInvisibleCharacters, name)
+			}
 		}
 	}
 
 	return findings
+}
+
+// schemaMetaKeys are JSON Schema keywords whose values identify the schema
+// language or the document, not anything about the tool. Their values are
+// URIs by definition, which is exactly what the exfiltration rule looks for.
+var schemaMetaKeys = map[string]bool{"$schema": true, "$id": true}
+
+// schemaText renders an input schema for scanning: decoded, so that escaped
+// characters are seen as what they are (​ is an invisible character, not
+// the six characters "​"), and without the meta keywords above. Field
+// names stay in: a parameter name is read by the model too, and is one of the
+// places a payload can hide. A schema that is not valid JSON is scanned as
+// it arrived.
+func schemaText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return string(raw)
+	}
+
+	var strip func(v any) any
+	strip = func(v any) any {
+		switch v := v.(type) {
+		case map[string]any:
+			for k, child := range v {
+				if schemaMetaKeys[k] {
+					delete(v, k)
+					continue
+				}
+				v[k] = strip(child)
+			}
+		case []any:
+			for i, child := range v {
+				v[i] = strip(child)
+			}
+		}
+		return v
+	}
+
+	var b strings.Builder
+	enc := json.NewEncoder(&b)
+	// Without this, < and > are written as < and >, and markup
+	// such as <IMPORTANT> would no longer match.
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(strip(decoded)); err != nil {
+		return string(raw)
+	}
+	return b.String()
 }
 
 // firstInvisibleRune reports the first invisible character in text, if any.

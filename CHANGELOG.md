@@ -56,6 +56,15 @@ All notable changes to this project are recorded here. The format follows
 
 ### Fixed
 
+- **A tool's description and its input schema could combine into a false
+  alarm.** They were scanned as one string, so Playwright's "Upload one or
+  multiple files" ran into the schema's standard `"$schema": "https://..."` and
+  read as an upload to a URL. They are now scanned separately, and the
+  `$schema` and `$id` keywords are left out. The schema is also decoded before
+  scanning, so escaped characters are seen as what they are: an invisible
+  character written as `\u200b`, or markup written as `\u003cIMPORTANT\u003e`,
+  used to slip past. False positives on the benign corpus: 1 of 213 → 0.
+
 - **A rug pull alarmed only once.** The baseline used to move to the new hash
   as soon as a change was seen, so the second session looked clean. The
   approved version now stays the baseline and the alarm repeats on every

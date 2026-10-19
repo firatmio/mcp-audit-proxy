@@ -15,9 +15,7 @@
 coverage.out
 .VSCodeCounter/
 
-# Internal working documents. These stay on disk but out of the repository:
-# they carry the business strategy — pricing, revenue targets, launch plan —
-# and this repository is going public.
+# Local working notes, kept out of the repository.
 /CLAUDE.md
 /PLAN.md
 /launch/

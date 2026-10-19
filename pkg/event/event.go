@@ -1,9 +1,8 @@
 // Package event defines the audit record mcp-audit produces.
 //
-// This is the wire format: every line of the local JSONL log, every webhook
-// body, and every element of a hosted-ingest batch is one of these serialised
-// to JSON. It lives in pkg/ rather than internal/ precisely so that the things
-// on the other end of those wires — a hosted backend, a SIEM adapter, someone
+// This is the wire format: every line of the local JSONL log and every webhook
+// body is one of these serialised to JSON. It lives in pkg/ rather than internal/ precisely so that the things
+// on the other end of those wires — a log collector, a SIEM adapter, someone
 // else's tooling — can share the definition instead of restating it and hoping
 // the two stay in step.
 //

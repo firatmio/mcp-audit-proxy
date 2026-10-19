@@ -34,9 +34,6 @@ const (
 // has not said otherwise.
 const DefaultJSONLPath = "~/.mcp-audit/logs/events.jsonl"
 
-// DefaultHostedEndpoint is the Team-tier ingest URL.
-const DefaultHostedEndpoint = "https://api.mcp-audit.dev/v1/events"
-
 // DefaultStatePath is where rug-pull detection remembers what each tool looked
 // like the first time it was advertised. It has to outlive the process: a rug
 // pull is a change made days after the user approved the tool.
@@ -95,7 +92,9 @@ type Rule struct {
 type Sinks struct {
 	JSONL   JSONLSink   `yaml:"jsonl"`
 	Webhook WebhookSink `yaml:"webhook"`
-	Hosted  HostedSink  `yaml:"hosted"`
+	// Hosted is no longer a sink. The key is still read so that config files
+	// written for 0.1.0 keep loading; see RemovedHostedSink.
+	Hosted *RemovedHostedSink `yaml:"hosted,omitempty"`
 }
 
 // JSONLSink is the local newline-delimited JSON log. It is always enabled.
@@ -168,8 +167,12 @@ func (w *WebhookSink) ResolvedSend() string {
 	return SendFlagged
 }
 
-// HostedSink is the optional Team-tier backend export. Week 4+.
-type HostedSink struct {
+// RemovedHostedSink is the shape of the `sinks.hosted` section that 0.1.0
+// accepted. The sink itself was removed: mcp-audit is fully open source and has
+// no hosted backend. The section is still parsed so an old config with
+// `enabled: false` loads unchanged; `enabled: true` is reported as an error
+// rather than silently doing nothing.
+type RemovedHostedSink struct {
 	Enabled  bool   `yaml:"enabled"`
 	APIKey   string `yaml:"api_key"`
 	Endpoint string `yaml:"endpoint"`
@@ -189,8 +192,7 @@ func Default() Config {
 			StatePath:           DefaultStatePath,
 		},
 		Sinks: Sinks{
-			JSONL:  JSONLSink{Path: DefaultJSONLPath},
-			Hosted: HostedSink{Endpoint: DefaultHostedEndpoint},
+			JSONL: JSONLSink{Path: DefaultJSONLPath},
 		},
 	}
 }
@@ -291,9 +293,6 @@ func (c *Config) applyDefaults() {
 	if c.Sinks.JSONL.Path == "" {
 		c.Sinks.JSONL.Path = d.Sinks.JSONL.Path
 	}
-	if c.Sinks.Hosted.Endpoint == "" {
-		c.Sinks.Hosted.Endpoint = d.Sinks.Hosted.Endpoint
-	}
 }
 
 // Validate checks the config for mistakes that would otherwise surface as
@@ -348,13 +347,8 @@ func (c *Config) Validate() error {
 				SendAll, SendFlagged, c.Sinks.Webhook.Send)
 		}
 	}
-	if c.Sinks.Hosted.Enabled {
-		if c.Sinks.Hosted.APIKey == "" {
-			return errors.New("sinks.hosted.enabled is true but sinks.hosted.api_key is empty")
-		}
-		if c.Sinks.Hosted.Endpoint == "" {
-			return errors.New("sinks.hosted.enabled is true but sinks.hosted.endpoint is empty")
-		}
+	if c.Sinks.Hosted != nil && c.Sinks.Hosted.Enabled {
+		return errors.New("sinks.hosted was removed; to forward events to your own collector, use sinks.webhook with format: generic and send: all")
 	}
 	return nil
 }

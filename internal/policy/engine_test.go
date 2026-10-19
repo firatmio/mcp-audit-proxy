@@ -12,7 +12,7 @@ import (
 // directory, so no test ever touches the developer's real ~/.mcp-audit state.
 func newEngine(t *testing.T, policyCfg config.Policy) *Engine {
 	t.Helper()
-	if policyCfg.StatePath == "" {
+	if policyCfg.StatePath == "" || policyCfg.StatePath == config.DefaultStatePath {
 		policyCfg.StatePath = filepath.Join(t.TempDir(), "tools.json")
 	}
 	engine, err := New(Options{Policy: policyCfg, ServerName: "test-server"})

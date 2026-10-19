@@ -17,6 +17,13 @@ All notable changes to this project are recorded here. The format follows
   a change can be reviewed rather than only detected. Stores written by 0.1.0
   keep working; snapshots are filled in the next time a tool is seen unchanged.
 
+### Removed
+
+- **The hosted sink.** mcp-audit is fully open source and has no paid tier or
+  hosted backend. Config files that contain a `sinks.hosted` section still load;
+  `enabled: true` there is now an error that points to the webhook sink
+  (`format: generic`, `send: all`) for forwarding events to your own collector.
+
 ### Fixed
 
 - **A rug pull alarmed only once.** The baseline used to move to the new hash
@@ -25,6 +32,11 @@ All notable changes to this project are recorded here. The format follows
   session until the change is approved or reverted.
 - The proxy re-reads the store on every `tools/list`, so an approval made with
   `lock approve` while a proxy is running is not overwritten.
+- **`lock` flags after the server name were ignored.** `lock approve demo echo
+  --state ./lock.json` stopped parsing at `demo`, dropped `--state`, and
+  approved the change in the default store instead — without saying so. Flags
+  are now accepted on either side of the server and tool, and a surplus
+  argument is an error rather than silently discarded.
 
 ## [0.1.0] — 2026-08-13
 
@@ -69,8 +81,9 @@ time a `tools/list` result comes back the evidence is what matters.
 - **Webhook sink**, optional and best-effort. Slack, Discord and generic
   formats, detected from the URL. Chat formats default to flagged events only;
   a generic SIEM feed gets everything.
-- **Hosted sink**, optional and best-effort. Batches events to a Team-tier
-  ingest endpoint, gzipped. Refuses plain HTTP outside loopback.
+- **Hosted sink**, optional and best-effort. Batches events to a remote
+  ingest endpoint, gzipped. Refuses plain HTTP outside loopback. (Removed in
+  the next release.)
 - Both retry with bounded exponential backoff and drop rather than slow the
   proxy down.
 

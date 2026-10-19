@@ -3,22 +3,29 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/firatmio/mcp-audit-proxy.svg)](https://pkg.go.dev/github.com/firatmio/mcp-audit-proxy)
 
-**Wireshark + auditd, but for MCP.**
+**A package-lock and flight recorder for MCP tool descriptions.**
 
-`mcp-audit` sits transparently in front of any MCP server and records every
-tool call that passes through it — what was called, by whom, with which
-arguments, and what came back. One Go binary, no daemon, no Docker, no
-Kubernetes.
+An MCP server's tool descriptions go straight into your model's context, and a
+server can change them at any time. `mcp-audit` sits transparently in front of
+any MCP server and:
 
-It answers the question every team adopting agents eventually has to answer:
-*which tool did our agent call, when, and with what?*
+- **pins every tool** the first time it is seen, and raises an alarm on every
+  session after a description or schema changes, until a person reviews the
+  change with `mcp-audit lock diff` and approves it with `mcp-audit lock approve`;
+- **records every message** — which tool was called, with which arguments, and
+  what came back — to a local JSONL file;
+- **flags prompt injection** in tool descriptions and in tool results;
+- **blocks only what you tell it to**, with optional allow/deny rules.
+
+Everything runs locally. No account, no cloud, no telemetry: nothing leaves your
+machine unless you configure a webhook. One Go binary, Apache 2.0.
 
 ```console
 $ mcp-audit run -- npx -y @modelcontextprotocol/server-filesystem /tmp
 mcp-audit dev | mode: stdio, wrapping "npx -y @modelcontextprotocol/server-filesystem /tmp"
 mcp-audit config: built-in defaults (no config file found)
 mcp-audit policy: shadow (recording only, nothing is blocked)
-mcp-audit detectors: rug-pull, tool-poisoning
+mcp-audit detectors: rug-pull, tool-poisoning, result-injection
 mcp-audit audit log: /home/you/.mcp-audit/logs/events.jsonl
 ```
 
@@ -320,6 +327,11 @@ one. An HTTP server is named after its `--target` URL.
   [`ARCHITECTURE.md`](ARCHITECTURE.md#performans-notu) for the measurements.
 - **A message it cannot parse is still forwarded.** Auditing must never break a
   working MCP session.
+- **Detectors flag; only rules block.** Rug-pull, tool-poisoning and
+  result-injection checks raise alarms and mark events. The only thing that
+  refuses a call is an RBAC rule you wrote.
+- **Nothing leaves the machine by default.** The log, the tool fingerprints and
+  every check are local. Events go elsewhere only if you configure a webhook.
 
 ## Demo
 

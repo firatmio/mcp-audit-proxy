@@ -46,6 +46,8 @@ func run(args []string) int {
 		return dispatch(cmdRun(args[1:]))
 	case "serve":
 		return dispatch(cmdServe(args[1:]))
+	case "lock":
+		return dispatch(cmdLock(args[1:]))
 	case "version", "--version", "-v":
 		fmt.Printf("mcp-audit %s\n", Version)
 		return 0
@@ -77,6 +79,7 @@ func usage(w *os.File) {
 Usage:
   mcp-audit run [flags] -- <command> [args...]   wrap a local (stdio) MCP server
   mcp-audit serve --target <url> [flags]         proxy a remote (HTTP) MCP server
+  mcp-audit lock status|diff|approve             review and approve changed tool descriptions
   mcp-audit version                              print the version
 
 Common flags:
@@ -89,6 +92,13 @@ Common flags:
 Flags for serve:
   --target <url>        upstream MCP server URL (required)
   --listen <addr>       address to listen on (default ":9000")
+
+Flags for lock (all accept --state <path> or --config <path>):
+  lock status                      list tools whose description changed since approval
+                                   (exit status 1 if any, so CI can gate on it)
+  lock diff [server [tool]]        show what changed
+  lock approve --all               accept every pending change
+  lock approve <server> [tool]     accept the changes of one server or tool
 
 Examples:
   mcp-audit run -- npx -y @modelcontextprotocol/server-filesystem /tmp

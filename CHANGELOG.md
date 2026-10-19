@@ -4,6 +4,28 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`mcp-audit lock`.** `lock status` lists tools whose description or schema
+  changed since they were approved (exit status 1 if any, so CI can gate on
+  it), `lock diff` shows the change sentence by sentence, and
+  `lock approve --all` / `lock approve <server> [tool]` accepts it. Think
+  package-lock, for MCP tool descriptions.
+- The fingerprint store now keeps a readable snapshot of each approved tool, so
+  a change can be reviewed rather than only detected. Stores written by 0.1.0
+  keep working; snapshots are filled in the next time a tool is seen unchanged.
+
+### Fixed
+
+- **A rug pull alarmed only once.** The baseline used to move to the new hash
+  as soon as a change was seen, so the second session looked clean. The
+  approved version now stays the baseline and the alarm repeats on every
+  session until the change is approved or reverted.
+- The proxy re-reads the store on every `tools/list`, so an approval made with
+  `lock approve` while a proxy is running is not overwritten.
+
 ## [0.1.0] — 2026-08-13
 
 First release.

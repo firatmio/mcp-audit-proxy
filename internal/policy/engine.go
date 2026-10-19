@@ -171,6 +171,10 @@ func (e *Engine) inspectToolList(ev *interceptor.ToolCallEvent) Decision {
 			e.logger.Printf("ALERT rug pull on server %q: %s", ev.ServerName, change)
 		}
 		if len(changes) > 0 {
+			e.logger.Printf("  not approved: review with `mcp-audit lock diff`, accept with `mcp-audit lock approve %s`",
+				ev.ServerName)
+		}
+		if len(changes) > 0 {
 			ev.AddFlag(FlagRugPull)
 			decision.Flags = append(decision.Flags, FlagRugPull)
 			decision.Reason = changes[0].String()

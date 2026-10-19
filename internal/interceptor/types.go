@@ -13,7 +13,7 @@ import (
 )
 
 // The audit record itself lives in pkg/event, because it is the wire format
-// and anything on the other end of that wire — a hosted backend, a SIEM
+// and anything on the other end of that wire — a log collector, a SIEM
 // adapter — needs the same definition rather than a restatement of it. These
 // aliases keep the rest of this module writing interceptor.ToolCallEvent.
 

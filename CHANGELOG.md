@@ -17,6 +17,13 @@ All notable changes to this project are recorded here. The format follows
   a change can be reviewed rather than only detected. Stores written by 0.1.0
   keep working; snapshots are filled in the next time a tool is seen unchanged.
 
+### Removed
+
+- **The hosted sink.** mcp-audit is fully open source and has no paid tier or
+  hosted backend. Config files that contain a `sinks.hosted` section still load;
+  `enabled: true` there is now an error that points to the webhook sink
+  (`format: generic`, `send: all`) for forwarding events to your own collector.
+
 ### Fixed
 
 - **A rug pull alarmed only once.** The baseline used to move to the new hash
@@ -69,8 +76,9 @@ time a `tools/list` result comes back the evidence is what matters.
 - **Webhook sink**, optional and best-effort. Slack, Discord and generic
   formats, detected from the URL. Chat formats default to flagged events only;
   a generic SIEM feed gets everything.
-- **Hosted sink**, optional and best-effort. Batches events to a Team-tier
-  ingest endpoint, gzipped. Refuses plain HTTP outside loopback.
+- **Hosted sink**, optional and best-effort. Batches events to a remote
+  ingest endpoint, gzipped. Refuses plain HTTP outside loopback. (Removed in
+  the next release.)
 - Both retry with bounded exponential backoff and drop rather than slow the
   proxy down.
 

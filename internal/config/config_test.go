@@ -32,7 +32,7 @@ func TestDefaultIsShadowModeAndValid(t *testing.T) {
 	if cfg.Sinks.JSONL.Path != DefaultJSONLPath {
 		t.Errorf("default jsonl path = %q, want %q", cfg.Sinks.JSONL.Path, DefaultJSONLPath)
 	}
-	if cfg.Sinks.Webhook.Enabled || cfg.Sinks.Hosted.Enabled {
+	if cfg.Sinks.Webhook.Enabled || cfg.Sinks.Hosted != nil {
 		t.Error("optional sinks must be off by default; nothing leaves the machine unasked")
 	}
 	if !cfg.RugPullEnabled() || !cfg.PoisoningEnabled() {
@@ -123,7 +123,7 @@ sinks:
   hosted:
     enabled: false
     api_key: ""
-    endpoint: "https://api.mcp-audit.dev/v1/events"
+    endpoint: "https://collector.example.com/v1/events"
 `)
 
 	cfg, err := Load(path)
@@ -216,9 +216,9 @@ func TestValidateCatchesConfigMistakes(t *testing.T) {
 			"sinks.webhook.url",
 		},
 		{
-			"hosted enabled without api key",
-			func(c *Config) { c.Sinks.Hosted = HostedSink{Enabled: true, Endpoint: "https://x"} },
-			"api_key",
+			"the removed hosted sink switched on",
+			func(c *Config) { c.Sinks.Hosted = &RemovedHostedSink{Enabled: true} },
+			"sinks.hosted was removed",
 		},
 		{
 			"webhook url without a scheme",

@@ -137,7 +137,7 @@ func runWrapper(t *testing.T, policyCfg config.Policy, clientInput string, env .
 	// Keep the rug-pull fingerprint store inside the test's temp directory so
 	// the suite never touches the developer's real ~/.mcp-audit state. A test
 	// that needs two runs to share a store sets the path itself.
-	if policyCfg.StatePath == "" {
+	if policyCfg.StatePath == "" || policyCfg.StatePath == config.DefaultStatePath {
 		policyCfg.StatePath = filepath.Join(t.TempDir(), "tools.json")
 	}
 

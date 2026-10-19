@@ -58,7 +58,7 @@ func newTestProxy(t *testing.T, upstreamURL string, policyCfg config.Policy) *te
 	// Keep the rug-pull fingerprint store inside the test's temp directory so
 	// the suite never touches the developer's real ~/.mcp-audit state. A test
 	// that needs two proxies to share a store sets the path itself.
-	if policyCfg.StatePath == "" {
+	if policyCfg.StatePath == "" || policyCfg.StatePath == config.DefaultStatePath {
 		policyCfg.StatePath = filepath.Join(t.TempDir(), "tools.json")
 	}
 

@@ -132,6 +132,14 @@ kalıcı bir JSON dosyası tutulur:
 
 Notlar:
 
+- `<server-name>` fingerprint'lerin anahtarıdır, yani iki farklı server aynı adı
+  paylaşırsa fingerprint'leri karışır: birini onaylamak diğerini de onaylar, birinin
+  tool'u diğerinin aynı adlı tool'una "değişiklik" gibi görünür. Bu yüzden
+  `--server-name` verilmezse ad çalıştırılan programdan değil, onun çalıştırdığı
+  şeyden türetilir (`cmd/mcp-audit/servername.go`): `npx`/`uvx`/`bunx`/`pnpm dlx`
+  için paket adı (scope ve sürüm atılır), `docker run` için image'ın repo adı,
+  `node`/`python`/`deno`/`bun` için script ya da `python -m` modülü. Tanınmayan
+  komutlar program adını kullanmaya devam eder. HTTP modunda ad `--target` URL'idir.
 - Hash alınmadan önce `inputSchema` **canonicalize** edilir (JSON parse + yeniden
   encode). Aksi halde map iterasyon sırası değişen bir server her çağrıda
   rug-pull gibi görünürdü.

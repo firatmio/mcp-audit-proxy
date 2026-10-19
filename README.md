@@ -236,6 +236,14 @@ serve only:
 --listen <addr>       address to listen on (default ":9000")
 ```
 
+Without `--server-name`, a stdio server is named after what it runs, not after
+the launcher: `npx -y @modelcontextprotocol/server-filesystem` is
+`server-filesystem`, `uvx mcp-server-fetch` is `mcp-server-fetch`, `docker run …
+ghcr.io/github/github-mcp-server` is `github-mcp-server`, and
+`node ./weather-server/build/index.js` is `weather-server`. The name matters: it
+is the key tool fingerprints are pinned under, so two servers must not share
+one. An HTTP server is named after its `--target` URL.
+
 ## Design guarantees
 
 - **Transparent.** Every byte the client sends reaches the server unchanged, and

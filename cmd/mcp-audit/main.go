@@ -14,7 +14,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -153,7 +152,7 @@ func cmdRun(args []string) (int, error) {
 
 	serverName := common.serverName
 	if serverName == "" {
-		serverName = strings.TrimSuffix(filepath.Base(serverCmd[0]), filepath.Ext(serverCmd[0]))
+		serverName = deriveServerName(serverCmd)
 	}
 
 	logger := log.New(os.Stderr, "mcp-audit: ", 0)

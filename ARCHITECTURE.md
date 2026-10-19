@@ -86,6 +86,7 @@ policy:
         deny: []
   rug_pull_detection: true
   poisoning_heuristics: true
+  result_scanning: true      # tools/call sonuçlarında prompt injection taraması
   state_path: "~/.mcp-audit/state/tools.json"  # tool fingerprint store
 
 sinks:
@@ -98,7 +99,7 @@ sinks:
 
 ## Policy engine akışı
 
-Policy engine iki noktada devreye girer:
+Policy engine üç noktada devreye girer:
 
 1. **`tools/call` request'inde** — RBAC allow/deny. Reddedilirse mesaj server'a
    hiç iletilmez, client'a `-32000` kodlu JSON-RPC hatası döner.
@@ -106,6 +107,22 @@ Policy engine iki noktada devreye girer:
    Response'lar **asla bloklanmaz**; sadece `PolicyFlags` işaretlenir ve
    stderr'e alarm basılır. Yan etki zaten gerçekleşmiş olur, bloklamak sadece
    kanıtı gizler.
+3. **`tools/call` response'unda** — sonuç içindeki prompt injection taraması
+   (`internal/policy/results.go`). Sonucu çoğu zaman server'ın yazarı değil,
+   güvenilmeyen biri yazar (issue, web sayfası, destek talebi); oradaki
+   talimatlar modele veriyle aynı yoldan ulaşır. Sadece `instruction_override`,
+   `hidden_instruction` ve `concealment` kuralları kullanılır — diğerleri
+   sıradan dokümanlarda yanlış alarm veriyor (ölçüm `testdata/corpus/RESULTS.md`).
+   Bulunursa `result_injection_suspect` işaretlenir; asla bloklanmaz.
+
+   Maliyet sınırlı, çünkü stdio pump sıradaki mesajı tarama bitince okur:
+   sonucun JSON'unun en fazla ilk 1 MiB'ı gezilir, metnin en fazla ilk 64 KiB'ı
+   taranır, base64 payload'lar atlanır. JSON `encoding/json` ile değil elle
+   gezilir: decoder sadece tam token verdiği için limiti aşan tek bir metin
+   bloğu hiç taranmıyordu ve her string tam kopyalanıyordu. İki yavaş regex
+   (`instruction_override`, `concealment`) sadece anahtar kelimelerin
+   çevresindeki pencerelerde çalışır; sonucun tam regex ile aynı olduğunu
+   `windows_test.go` gerçek metin üzerinde doğrular.
 
 Diğer tüm mesajlar (initialize, ping, resources/*) değişmeden geçer.
 
@@ -194,3 +211,14 @@ tick'e yuvarlanıyor ve kodu değil saati ölçüyor).
 
 Policy engine ve sink'ler bu bütçenin dışında: policy sadece `tools/call` ve
 `tools/list` mesajlarında çalışıyor, sink'ler ayrı goroutine'lere devrediyor.
+
+`tools/call` sonuç taraması response iletildikten sonra çalışır, yani client'ı
+bekletmez; ama stdio pump sıradaki mesajı ancak tarama bitince okur. Aynı
+makinede (`go test ./internal/policy -bench ResultScan`):
+
+| Sonuç | Süre | Alloc |
+|---|---|---|
+| Küçük metin sonucu | ~0.8 µs | 194 B / 5 |
+| 1 MiB metin | ~0.6–1.1 ms | 290 KB / 5 |
+| 1 MiB base64 görüntü | ~1.1 ms | 64 KB / 1 |
+| 8 MiB metin (1 MiB'ı gezilir) | ~1.1 ms | 287 KB / 4 |

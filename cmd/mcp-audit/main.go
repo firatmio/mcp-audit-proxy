@@ -320,6 +320,9 @@ func banner(cfg config.Config, p *pipeline, mode string) {
 	if cfg.PoisoningEnabled() {
 		detectors = append(detectors, "tool-poisoning")
 	}
+	if cfg.ResultScanningEnabled() {
+		detectors = append(detectors, "result-injection")
+	}
 	if len(detectors) == 0 {
 		detectors = append(detectors, "none")
 	}

@@ -10,7 +10,9 @@ package corpus
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,15 +36,49 @@ type BenignSet struct {
 	Tools      []Tool   `json:"tools"`
 }
 
+// BenignResultSet is a series of real tools/call results from one server,
+// captured with scripts/corpus-capture -calls.
+type BenignResultSet struct {
+	Server     string         `json:"server"`
+	Package    string         `json:"package"`
+	License    string         `json:"license"`
+	Repository string         `json:"repository"`
+	Captured   string         `json:"captured"`
+	Command    []string       `json:"command"`
+	Content    *Content       `json:"content,omitempty"`
+	Calls      []RecordedCall `json:"calls"`
+}
+
+// Content describes what the recorded calls read, which has an owner and a
+// licence of its own.
+type Content struct {
+	Description string `json:"description"`
+	Source      string `json:"source"`
+	License     string `json:"license"`
+}
+
+// RecordedCall is one tools/call and what came back: a result, or a JSON-RPC
+// error.
+type RecordedCall struct {
+	Tool      string          `json:"tool"`
+	Arguments json.RawMessage `json:"arguments"`
+	Result    json.RawMessage `json:"result,omitempty"`
+	Error     json.RawMessage `json:"error,omitempty"`
+}
+
 // Corpus is everything under testdata/corpus.
 type Corpus struct {
-	Benign []BenignSet
+	Benign        []BenignSet
+	BenignResults []BenignResultSet
 }
 
 // Load reads and validates the corpus rooted at dir.
 func Load(dir string) (*Corpus, error) {
 	c := &Corpus{}
 	if err := loadDir(filepath.Join(dir, "benign"), &c.Benign); err != nil {
+		return nil, err
+	}
+	if err := loadDir(filepath.Join(dir, "benign-results"), &c.BenignResults); err != nil {
 		return nil, err
 	}
 	if err := c.validate(); err != nil {
@@ -54,6 +90,11 @@ func Load(dir string) (*Corpus, error) {
 // loadDir decodes every .json file in dir, in name order, into *out.
 func loadDir[T any](dir string, out *[]T) error {
 	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		// Every part of the corpus is optional; what must be non-empty is
+		// for the caller to decide.
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -104,6 +145,20 @@ func (c *Corpus) validate() error {
 				return fmt.Errorf("benign set %q: duplicate tool %q", b.Server, t.Name)
 			}
 			names[t.Name] = true
+		}
+	}
+
+	for _, set := range c.BenignResults {
+		if set.Server == "" || set.Package == "" || set.License == "" || len(set.Calls) == 0 {
+			return fmt.Errorf("benign result set %q: server, package, license and calls are required", set.Server)
+		}
+		if set.Content != nil && (set.Content.Source == "" || set.Content.License == "") {
+			return fmt.Errorf("benign result set %q: content needs a source and a licence", set.Server)
+		}
+		for i, call := range set.Calls {
+			if call.Tool == "" || (len(call.Result) == 0) == (len(call.Error) == 0) {
+				return fmt.Errorf("benign result set %q, call %d: needs a tool and exactly one of result or error", set.Server, i)
+			}
 		}
 	}
 	return nil

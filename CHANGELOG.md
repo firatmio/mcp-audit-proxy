@@ -8,6 +8,16 @@ All notable changes to this project are recorded here. The format follows
 
 ### Added
 
+- **Prompt-injection scanning of tool results.** Every `tools/call` result —
+  text, embedded resources, resource links, `structuredContent` and JSON-RPC
+  error messages — is scanned with the `instruction_override`,
+  `hidden_instruction` and `concealment` rules, and flagged
+  `result_injection_suspect` (a new value in `pkg/event`). It never blocks.
+  The cost is bounded: at most 1 MiB of JSON is walked and 64 KiB of text
+  scanned per result, base64 payloads are skipped. On by default; turn off
+  with `policy.result_scanning: false`. The benign corpus gains real results
+  (`testdata/corpus/benign-results`) and the README table a row for them.
+
 - **A measured false-positive rate.** `testdata/corpus/benign` holds the tool
   lists of 15 real MCP servers (213 tools), captured at pinned versions with
   the new `scripts/corpus-capture`. `go test ./internal/corpus` runs every tool

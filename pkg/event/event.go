@@ -42,6 +42,9 @@ const (
 	// FlagPoisoningSuspect marks a tools/list result carrying a tool
 	// description that looks like a prompt-injection attempt.
 	FlagPoisoningSuspect = "poisoning_suspect"
+	// FlagResultInjectionSuspect marks a tools/call result whose content looks
+	// like it is addressing the model rather than reporting data.
+	FlagResultInjectionSuspect = "result_injection_suspect"
 )
 
 // ToolCallEvent is the audit record produced for every JSON-RPC message that

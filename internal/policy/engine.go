@@ -24,6 +24,8 @@ const (
 	FlagRBACDenied       = event.FlagRBACDenied
 	FlagRugPull          = event.FlagRugPull
 	FlagPoisoningSuspect = event.FlagPoisoningSuspect
+	// FlagResultInjectionSuspect is re-exported for the same reason.
+	FlagResultInjectionSuspect = event.FlagResultInjectionSuspect
 )
 
 // Decision is the outcome of evaluating one event.
@@ -56,6 +58,7 @@ type Engine struct {
 	rbac      *RBAC
 	rugPull   *RugPullDetector
 	poisoning *PoisoningScanner
+	results   *ResultScanner
 	logger    *log.Logger
 }
 
@@ -90,6 +93,14 @@ func New(opts Options) (*Engine, error) {
 		e.poisoning = NewPoisoningScanner()
 	}
 
+	if opts.Policy.ResultScanningEnabled() {
+		scanner, err := NewResultScanner(ResultRules)
+		if err != nil {
+			return nil, err
+		}
+		e.results = scanner
+	}
+
 	return e, nil
 }
 
@@ -122,8 +133,37 @@ func (e *Engine) Evaluate(ev *interceptor.ToolCallEvent) Decision {
 		return e.inspectToolList(ev)
 	case ev.Direction == interceptor.DirectionRequest && ev.IsToolCall():
 		return e.checkRBAC(ev)
+	case ev.Direction == interceptor.DirectionResponse && ev.IsToolCall():
+		return e.inspectToolResult(ev)
 	default:
 		return Decision{Allowed: true}
+	}
+}
+
+// inspectToolResult scans what a tool returned for prompt injection. Like
+// every response check it never blocks: the result has already been forwarded.
+func (e *Engine) inspectToolResult(ev *interceptor.ToolCallEvent) Decision {
+	if e.results == nil {
+		return Decision{Allowed: true}
+	}
+	findings := e.results.Scan(ev.Result, ev.Error)
+	if len(findings) == 0 {
+		return Decision{Allowed: true}
+	}
+
+	tool := ev.ToolName
+	if tool == "" {
+		tool = "(unknown tool)"
+	}
+	for _, f := range findings {
+		e.logger.Printf("ALERT possible prompt injection in a result from server %q, tool %q: %s",
+			ev.ServerName, tool, f)
+	}
+	ev.AddFlag(FlagResultInjectionSuspect)
+	return Decision{
+		Allowed: true,
+		Flags:   []string{FlagResultInjectionSuspect},
+		Reason:  findings[0].String(),
 	}
 }
 

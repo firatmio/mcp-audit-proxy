@@ -11,11 +11,33 @@ import (
 // by hand and reviewed as such.
 func (r *Report) Summary() string {
 	var b strings.Builder
-	b.WriteString("| Benign set | Tools | Flagged | False-positive rate |\n")
+	b.WriteString("| Benign set | Items | Flagged | False-positive rate |\n")
 	b.WriteString("|---|--:|--:|--:|\n")
 	fmt.Fprintf(&b, "| Tool descriptions from %d real MCP servers | %d | %d | %s |\n",
 		r.Servers, len(r.Benign), r.flagged(), percent(r.flagged(), len(r.Benign)))
+	if len(r.Results) > 0 {
+		fmt.Fprintf(&b, "| Tool results from %d real MCP %s | %d | %d | %s |\n",
+			r.ResultServers, plural(r.ResultServers, "server", "servers"),
+			len(r.Results), r.flaggedResults(), percent(r.flaggedResults(), len(r.Results)))
+	}
 	return b.String()
+}
+
+func (r *Report) flaggedResults() int {
+	n := 0
+	for _, c := range r.Results {
+		if c.Flagged {
+			n++
+		}
+	}
+	return n
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // Details renders the full report, testdata/corpus/RESULTS.md.
@@ -87,6 +109,22 @@ func (r *Report) Details() string {
 		for _, t := range r.Benign {
 			if t.Flagged {
 				fmt.Fprintf(&b, "| %s | `%s` | %s |\n", t.Server, t.Tool, strings.Join(t.Rules, ", "))
+			}
+		}
+	}
+
+	if len(r.Results) > 0 {
+		b.WriteString("\n## Tool results\n\n")
+		b.WriteString("Scanned with the result heuristics (`policy.ResultRules`), not the description ones.\n\n")
+		if r.flaggedResults() == 0 {
+			b.WriteString("No false positives.\n")
+		} else {
+			b.WriteString("| Server | Tool | Target | Heuristics that matched |\n")
+			b.WriteString("|---|---|---|---|\n")
+			for _, c := range r.Results {
+				if c.Flagged {
+					fmt.Fprintf(&b, "| %s | `%s` | `%s` | %s |\n", c.Server, c.Tool, c.Target, strings.Join(c.Rules, ", "))
+				}
 			}
 		}
 	}

@@ -21,9 +21,24 @@ type ToolResult struct {
 	Rules []string
 }
 
+// CallResult is what the detectors made of one benign tools/call result.
+type CallResult struct {
+	Server string
+	Tool   string
+	// Target is the call's main argument, to tell calls to one tool apart in
+	// the report: a path, a URL, or the arguments in brief.
+	Target  string
+	Flagged bool
+	Rules   []string
+}
+
 // Report is the outcome of a full run.
 type Report struct {
 	Benign []ToolResult
+	// Results are the benign tools/call results.
+	Results []CallResult
+	// ResultServers is the number of servers those results came from.
+	ResultServers int
 	// Servers is the number of real servers the benign tools came from.
 	Servers int
 }
@@ -33,7 +48,7 @@ type Report struct {
 // throwaway fingerprint stores; every evaluation gets its own, so nothing one
 // evaluation records can affect another.
 func Run(c *Corpus, stateDir string) (*Report, error) {
-	r := &Report{Servers: len(c.Benign)}
+	r := &Report{Servers: len(c.Benign), ResultServers: len(c.BenignResults)}
 	n := 0
 	newEngine := func(server string) (*policy.Engine, error) {
 		n++
@@ -64,7 +79,83 @@ func Run(c *Corpus, stateDir string) (*Report, error) {
 		}
 	}
 
+	for _, set := range c.BenignResults {
+		for _, call := range set.Calls {
+			eng, err := newEngine(set.Server)
+			if err != nil {
+				return nil, err
+			}
+			ev := interceptor.ToolCallEvent{
+				ServerName: set.Server,
+				Direction:  interceptor.DirectionResponse,
+				Method:     interceptor.MethodToolsCall,
+				ToolName:   call.Tool,
+				Result:     call.Result,
+				Error:      errorText(call.Error),
+			}
+			eng.Evaluate(&ev)
+			r.Results = append(r.Results, CallResult{
+				Server:  set.Server,
+				Tool:    call.Tool,
+				Target:  target(call.Arguments),
+				Flagged: len(ev.PolicyFlags) > 0,
+				Rules:   resultRulesFor(call),
+			})
+		}
+	}
+
 	return r, nil
+}
+
+// errorText renders a recorded JSON-RPC error the way the interceptor does.
+func errorText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var e struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(raw, &e) != nil {
+		return string(raw)
+	}
+	return fmt.Sprintf("%s (code %d)", e.Message, e.Code)
+}
+
+// target picks the argument that identifies a call in the report.
+func target(args json.RawMessage) string {
+	var m map[string]any
+	if json.Unmarshal(args, &m) != nil || len(m) == 0 {
+		return ""
+	}
+	for _, key := range []string{"path", "url", "uri", "query", "name"} {
+		if v, ok := m[key].(string); ok {
+			return v
+		}
+	}
+	b, _ := json.Marshal(m)
+	if len(b) > 60 {
+		b = append(b[:57], "..."...)
+	}
+	return string(b)
+}
+
+// resultRulesFor lists the result heuristics that match a call's result.
+func resultRulesFor(call RecordedCall) []string {
+	scanner, err := policy.NewResultScanner(policy.ResultRules)
+	if err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, f := range scanner.Scan(call.Result, errorText(call.Error)) {
+		seen[f.Rule] = true
+	}
+	rules := make([]string, 0, len(seen))
+	for rule := range seen {
+		rules = append(rules, rule)
+	}
+	sort.Strings(rules)
+	return rules
 }
 
 // listEvent builds the audit event the proxy produces for a tools/list

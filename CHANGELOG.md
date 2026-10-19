@@ -8,6 +8,12 @@ All notable changes to this project are recorded here. The format follows
 
 ### Added
 
+- **A measured false-positive rate.** `testdata/corpus/benign` holds the tool
+  lists of 15 real MCP servers (213 tools), captured at pinned versions with
+  the new `scripts/corpus-capture`. `go test ./internal/corpus` runs every tool
+  through the default policy and fails if the README table or
+  `testdata/corpus/RESULTS.md` no longer matches the result.
+
 - **`mcp-audit lock`.** `lock status` lists tools whose description or schema
   changed since they were approved (exit status 1 if any, so CI can gate on
   it), `lock diff` shows the change sentence by sentence, and

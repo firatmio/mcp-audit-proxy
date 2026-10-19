@@ -32,6 +32,11 @@ All notable changes to this project are recorded here. The format follows
   session until the change is approved or reverted.
 - The proxy re-reads the store on every `tools/list`, so an approval made with
   `lock approve` while a proxy is running is not overwritten.
+- **`lock` flags after the server name were ignored.** `lock approve demo echo
+  --state ./lock.json` stopped parsing at `demo`, dropped `--state`, and
+  approved the change in the default store instead — without saying so. Flags
+  are now accepted on either side of the server and tool, and a surplus
+  argument is an error rather than silently discarded.
 
 ## [0.1.0] — 2026-08-13
 

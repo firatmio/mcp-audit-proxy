@@ -85,8 +85,12 @@ func lockStatus(args []string, out io.Writer) (int, error) {
 	fs.SetOutput(os.Stderr)
 	var flags lockFlags
 	flags.register(fs)
-	if err := fs.Parse(args); err != nil {
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
 		return 2, nil
+	}
+	if len(rest) > 0 {
+		return 2, fmt.Errorf("unexpected argument %q: lock status takes no arguments", rest[0])
 	}
 
 	store, err := flags.open()
@@ -128,10 +132,14 @@ func lockDiff(args []string, out io.Writer) (int, error) {
 	fs.SetOutput(os.Stderr)
 	var flags lockFlags
 	flags.register(fs)
-	if err := fs.Parse(args); err != nil {
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
 		return 2, nil
 	}
-	server, tool := positional(fs.Args())
+	server, tool, err := positional(rest)
+	if err != nil {
+		return 2, err
+	}
 
 	store, err := flags.open()
 	if err != nil {
@@ -172,10 +180,14 @@ func lockApprove(args []string, out io.Writer) (int, error) {
 	var flags lockFlags
 	flags.register(fs)
 	all := fs.Bool("all", false, "approve every pending change")
-	if err := fs.Parse(args); err != nil {
+	rest, err := parseInterspersed(fs, args)
+	if err != nil {
 		return 2, nil
 	}
-	server, tool := positional(fs.Args())
+	server, tool, err := positional(rest)
+	if err != nil {
+		return 2, err
+	}
 
 	// Approving is a security decision, so it has to be asked for by name. A bare
 	// `lock approve` that quietly accepts everything would defeat the point.
@@ -206,15 +218,47 @@ func lockApprove(args []string, out io.Writer) (int, error) {
 	return 0, nil
 }
 
-// positional returns the optional server and tool arguments.
-func positional(args []string) (server, tool string) {
+// parseInterspersed parses flags wherever they appear among the arguments and
+// returns the positional ones in order.
+//
+// The standard flag package stops at the first non-flag argument, so
+// `lock approve demo echo --state ./lock.json` would leave --state unparsed and
+// act on the default store instead. For approval that is the worst way to be
+// wrong: a security decision recorded, without complaint, in a file nobody
+// asked about. So flags are accepted on either side of the server and tool.
+func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
+	var positionals []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		args = fs.Args()
+		if len(args) == 0 {
+			return positionals, nil
+		}
+		// "--" ends flag parsing for good; everything after it is positional.
+		if args[0] == "--" {
+			return append(positionals, args[1:]...), nil
+		}
+		positionals = append(positionals, args[0])
+		args = args[1:]
+	}
+}
+
+// positional returns the optional server and tool arguments. Anything beyond
+// those two is an error rather than ignored: an argument that silently does
+// nothing is usually a flag that was meant to do something.
+func positional(args []string) (server, tool string, err error) {
+	if len(args) > 2 {
+		return "", "", fmt.Errorf("unexpected argument %q: expected at most a server and a tool", args[2])
+	}
 	if len(args) > 0 {
 		server = args[0]
 	}
 	if len(args) > 1 {
 		tool = args[1]
 	}
-	return server, tool
+	return server, tool, nil
 }
 
 func shortHash(hash string) string {

@@ -17,6 +17,20 @@ All notable changes to this project are recorded here. The format follows
   a change can be reviewed rather than only detected. Stores written by 0.1.0
   keep working; snapshots are filled in the next time a tool is seen unchanged.
 
+### Changed
+
+- **A stdio server is named after what it runs, not after its launcher.**
+  Without `--server-name`, every server started with `npx` used to be called
+  `npx` — so `npx … server-filesystem` and `npx … server-memory` shared one set
+  of rug-pull fingerprints, `lock approve npx` approved both, and a tool one of
+  them defined could look like a change to the other's tool of the same name.
+  Package runners (`npx`, `uvx`, `bunx`, `pnpm dlx`, `npm exec`, `pipx run`),
+  `docker run` and script interpreters (`node`, `python`, `deno`, `bun`) are now
+  named after the package, image or script. Fingerprints recorded under the old
+  name (for example `npx`) stay in the store but are no longer used; each server
+  is pinned afresh under its new name the first time it is seen, without an
+  alarm. Pass `--server-name` to keep a specific name.
+
 ### Removed
 
 - **The hosted sink.** mcp-audit is fully open source and has no paid tier or

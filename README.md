@@ -146,7 +146,7 @@ the proxy uses, with the default configuration:
 <!-- false-positive-table:start -->
 | Benign set | Items | Flagged | False-positive rate |
 |---|--:|--:|--:|
-| Tool descriptions from 15 real MCP servers | 213 | 1 | 0.5% |
+| Tool descriptions from 15 real MCP servers | 213 | 0 | 0.0% |
 | Tool results from 1 real MCP server | 35 | 0 | 0.0% |
 <!-- false-positive-table:end -->
 

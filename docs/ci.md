@@ -116,7 +116,7 @@ and a matrix would only queue:
 | Test | `go test ./...` |
 | Test with `-race` | finds the mingw toolchain, then the full suite |
 | Cross-compile | all five release targets |
-| End-to-end demo | runs `scripts/demo.sh` and asserts all three detectors fired |
+| End-to-end demo | runs `scripts/demo.sh` and asserts all three detectors fired and `lock approve` accepted the change |
 | npm packaging | assembles all six packages, never publishes |
 
 The end-to-end step is the one worth keeping. Every unit test once passed while

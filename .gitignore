@@ -20,3 +20,6 @@ coverage.out
 /PLAN.md
 /launch/
 .serena/
+
+# scratch directory of docs/demo.tape
+.demo-tmp/

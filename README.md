@@ -31,16 +31,16 @@ mcp-audit audit log: /home/you/.mcp-audit/logs/events.jsonl
 
 That is the whole setup. No config file, nothing blocked, everything recorded.
 
-<!-- TODO(readme): demo GIF, about 30 seconds, recorded from scripts/demo.sh:
-     a normal session, a blocked call, a poisoned description, a rug pull, then
-     `lock diff` and `lock approve`. Embed it here as docs/demo.gif. -->
+![A recorded terminal session: a tool call logged, a call blocked by a rule, a poisoned tool description flagged, then a rug pull alarmed, reviewed with lock diff and approved](docs/demo.gif)
 
-[`scripts/demo.sh`](scripts/demo.sh) runs the whole story end to end against a
-stub server, in a temp directory that leaves your real state alone:
+The recording is [`scripts/demo.sh`](scripts/demo.sh), which runs the whole
+story end to end against a stub server, in a temp directory that leaves your
+real state alone:
 
 ```bash
 ./scripts/demo.sh                     # watch it
 TYPING_SPEED=0 PAUSE=0 ./scripts/demo.sh   # run it instantly, as a smoke test
+vhs docs/demo.tape                    # re-record docs/demo.gif
 ```
 
 ## Install

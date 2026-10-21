@@ -31,15 +31,33 @@ mcp-audit audit log: /home/you/.mcp-audit/logs/events.jsonl
 
 That is the whole setup. No config file, nothing blocked, everything recorded.
 
+![A recorded terminal session: a tool call logged, a call blocked by a rule, a poisoned tool description flagged, then a rug pull alarmed, reviewed with lock diff and approved](docs/demo.gif)
+
+The recording is [`scripts/demo.sh`](scripts/demo.sh), which runs the whole
+story end to end against a stub server, in a temp directory that leaves your
+real state alone:
+
+```bash
+./scripts/demo.sh                     # watch it
+TYPING_SPEED=0 PAUSE=0 ./scripts/demo.sh   # run it instantly, as a smoke test
+vhs docs/demo.tape                    # re-record docs/demo.gif
+```
+
 ## Install
 
-Download a binary for your platform from the
-[latest release](https://github.com/firatmio/mcp-audit-proxy/releases/latest),
-or use npm:
+No install needed — run it through npm, in front of the server you already use:
 
 ```bash
 npx mcp-audit-proxy run -- npx -y @modelcontextprotocol/server-filesystem /tmp
 ```
+
+Or download a binary for your platform from the
+[latest release](https://github.com/firatmio/mcp-audit-proxy/releases/latest).
+
+<!-- TODO(release): remove this note once 0.2.0 is on npm and GitHub. -->
+> **Note:** the npm package and the release binaries are still 0.1.0, which
+> predates `mcp-audit lock` and result scanning. Until 0.2.0 is out, build from
+> source to get them.
 
 Build from source — Go 1.24 or newer, no other dependencies:
 
@@ -164,7 +182,11 @@ The result set is small and comes from a single server, so treat its rate as a
 first reading rather than a settled number.
 
 This measures false alarms only. It says nothing about how many attacks the
-heuristics catch: a detector that flags nothing would score 0% here too.
+heuristics catch: a detector that flags nothing would score 0% here too. A
+detection rate needs a corpus of real attacks, which does not exist here yet.
+
+<!-- TODO(readme): add the detection-rate table once the attack corpus lands
+     (roadmap step 1, second half). Until then, no detection numbers. -->
 
 ### Prompt injection in tool results
 
@@ -255,6 +277,33 @@ policy:
 mcp-audit: blocked: tool "shell_exec" is denied by rule for client "*" (deny: "shell_exec")
 ```
 
+## How it compares
+
+Other tools cover some of the same ground, and some of them cover more. What
+each one documents:
+
+| | mcp-audit | [agent-scan](https://github.com/snyk/agent-scan) (formerly Invariant's mcp-scan) | [mcp-context-protector](https://github.com/trailofbits/mcp-context-protector) | [P4ST4S/mcp-audit](https://github.com/P4ST4S/mcp-audit) |
+|---|---|---|---|---|
+| How it runs | proxy in front of each server (stdio, HTTP) | on-demand scan of the agent configs on a machine | wrapper in front of each server (stdio, HTTP, SSE) | proxy in front of each server (stdio, HTTP) |
+| Pins tools, reacts when they change | alarms until a person approves (`lock`) | — | blocks tool calls until a person approves (trust on first use) | — |
+| Checks tool descriptions | local heuristics | local checks and Snyk's analysis API | through a guardrail provider, e.g. LlamaFirewall | — |
+| Checks tool results | local heuristics, flags only | — | through a guardrail provider, quarantines | — |
+| Records every call | local JSONL | — | — | HMAC-signed JSONL or SQLite |
+| Account needed | no | a Snyk API token | none mentioned | none mentioned |
+| Also covers | allow/deny rules | agent skills, the configs of 14 agents, background fleet scans | ANSI escape sanitising, `mcp.json` editing | redaction, rate limits, dashboard, metrics, OpenTelemetry |
+| Published false-positive rate | [yes](#how-often-it-cries-wolf) | — | — | — |
+
+Read from each project's README on 2026-10-21: agent-scan v0.6,
+mcp-context-protector `main`, P4ST4S/mcp-audit v1.3.0. A "—" means that
+documentation does not describe the feature, not that the project could never
+have it. Corrections are welcome as issues.
+
+In short: agent-scan inventories everything agent-related on a machine, using
+Snyk's service; mcp-context-protector enforces, blocking a server after a
+change instead of only raising an alarm; P4ST4S/mcp-audit is an audit and
+observability gateway. `mcp-audit` is the lockfile and flight recorder, and
+nothing but a rule you wrote ever blocks.
+
 ## Configuration
 
 Entirely optional. See [`config.example.yaml`](config.example.yaml) for the
@@ -305,6 +354,13 @@ mcp-audit version                              print the version
 serve only:
 --target <url>        upstream MCP server URL (required)
 --listen <addr>       address to listen on (default ":9000")
+
+lock (all accept --state <path> or --config <path>):
+lock status                      list tools whose description changed since approval
+                                 (exit status 1 if any)
+lock diff [server [tool]]        show what changed
+lock approve --all               accept every pending change
+lock approve <server> [tool]     accept the changes of one server or tool
 ```
 
 Without `--server-name`, a stdio server is named after what it runs, not after
@@ -332,20 +388,6 @@ one. An HTTP server is named after its `--target` URL.
   refuses a call is an RBAC rule you wrote.
 - **Nothing leaves the machine by default.** The log, the tool fingerprints and
   every check are local. Events go elsewhere only if you configure a webhook.
-
-## Demo
-
-[`scripts/demo.sh`](scripts/demo.sh) runs the whole story end to end — a normal
-session, a blocked call, a poisoned tool description and a rug pull — against
-the stub server, in a temp directory that leaves your real state alone.
-
-```bash
-./scripts/demo.sh                                  # watch it
-asciinema rec -c ./scripts/demo.sh mcp-audit.cast  # record it
-```
-
-`TYPING_SPEED=0 PAUSE=0 ./scripts/demo.sh` runs it instantly, which is handy as
-a smoke test.
 
 ## Development
 
@@ -379,7 +421,9 @@ To add a server to the false-positive corpus, capture its tool list at a pinned
 version, then regenerate the results and review the diff:
 
 ```bash
-go run ./scripts/corpus-capture -out testdata/corpus/benign/<name>.json     -package <pkg>@<version> -license <SPDX> -repository <url>     -- npx -y <pkg>@<version>
+go run ./scripts/corpus-capture -out testdata/corpus/benign/<name>.json \
+  -package <pkg>@<version> -license <SPDX> -repository <url> \
+  -- npx -y <pkg>@<version>
 go test ./internal/corpus -run TestBenchmark -update
 ```
 

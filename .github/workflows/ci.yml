@@ -118,7 +118,8 @@ jobs:
           PAUSE: 0
         run: |
           # The demo drives the real binaries through a full session: a normal
-          # tool call, a blocked one, a poisoned description and a rug pull.
+          # tool call, a blocked one, a poisoned description, a rug pull, and
+          # the review and approval of that change.
           # Asserting on its output turns it into an integration test — every
           # unit test once passed while the detectors were silently unwired,
           # and only something like this would have caught it.
@@ -129,7 +130,8 @@ jobs:
           for expected in \
             "blocked by mcp-audit policy" \
             "possible tool poisoning" \
-            "rug pull"
+            "rug pull" \
+            "1 change(s) approved"
           do
             if ! printf '%s' "$output" | grep -qF "$expected"; then
               echo "::error::the demo never reported: $expected"

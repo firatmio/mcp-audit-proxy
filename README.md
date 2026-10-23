@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/firatmio/mcp-audit-proxy.svg)](https://pkg.go.dev/github.com/firatmio/mcp-audit-proxy)
+[![Audit MCP on mcprush](https://mcprush.com/badge/firatmio-audit-mcp/score.svg)](https://mcprush.com/to/firatmio-audit-mcp?ref=badge)
 
 **A package-lock and flight recorder for MCP tool descriptions.**
 
